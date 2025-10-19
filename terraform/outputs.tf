@@ -47,3 +47,23 @@ output "jwt_secret_arn" {
   description = "ARN of the JWT secret"
   value       = module.secrets.jwt_secret_arn
 }
+
+output "eks_nodes_security_group_id" {
+  description = "Security group ID for EKS nodes"
+  value       = module.eks.eks_nodes_security_group_id
+}
+
+output "alb_target_group_arn" {
+  description = "ARN of the ALB target group"
+  value       = module.eks.alb_target_group_arn
+}
+
+output "bastion_public_ip" {
+  description = "Public IP address of the bastion host"
+  value       = module.vpc.bastion_public_ip
+}
+
+output "bastion_private_ip" {
+  description = "Private IP address of the bastion host"
+  value       = module.vpc.bastion_private_ip
+}

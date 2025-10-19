@@ -69,3 +69,14 @@ variable "ssl_certificate_arn" {
   type        = string
   default     = ""
 }
+
+variable "key_name" {
+  description = "EC2 Key Pair name for SSH access"
+  type        = string
+  default     = ""
+}
+
+variable "bastion_host_key_name" {
+  description = "Name of the EC2 Key Pair to use for bastion host"
+  type        = string
+}

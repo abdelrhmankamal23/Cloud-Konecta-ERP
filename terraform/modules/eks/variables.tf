@@ -41,3 +41,14 @@ variable "node_min_size" {
   type        = number
   default     = 1
 }
+
+variable "key_name" {
+  description = "EC2 Key Pair name for SSH access to EKS nodes"
+  type        = string
+  default     = ""
+}
+
+variable "vpc_cidr" {
+  description = "CIDR block of the VPC"
+  type        = string
+}

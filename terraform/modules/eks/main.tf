@@ -7,6 +7,7 @@ resource "aws_eks_cluster" "main" {
     subnet_ids              = concat(var.private_subnet_ids, var.public_subnet_ids)
     endpoint_private_access = true
     endpoint_public_access  = true
+    public_access_cidrs     = ["0.0.0.0/0"]
   }
 
   tags = {
@@ -31,6 +32,10 @@ resource "aws_eks_node_group" "main" {
   }
 
   instance_types = [var.node_instance_type]
+
+  remote_access {
+    ec2_ssh_key = var.key_name
+  }
 
   tags = {
     Name = "konecta-erp-nodes-${var.environment}"
@@ -138,5 +143,92 @@ resource "aws_lb" "main" {
   subnets            = var.public_subnet_ids
   tags = {
     Name = "konecta-erp-alb-${var.environment}"
+  }
+}
+
+resource "aws_lb_target_group" "main" {
+  name     = "konecta-erp-tg-${var.environment}"
+  port     = 80
+  protocol = "HTTP"
+  vpc_id   = var.vpc_id
+
+  health_check {
+    enabled             = true
+    healthy_threshold   = 2
+    interval            = 30
+    matcher             = "200"
+    path                = "/health"
+    port                = "traffic-port"
+    protocol            = "HTTP"
+    timeout             = 5
+    unhealthy_threshold = 2
+  }
+
+  tags = {
+    Name = "konecta-erp-tg-${var.environment}"
+  }
+}
+
+resource "aws_lb_listener" "main" {
+  load_balancer_arn = aws_lb.main.arn
+  port              = "80"
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.main.arn
+  }
+
+  tags = {
+    Name = "konecta-erp-listener-${var.environment}"
+  }
+}
+
+resource "aws_security_group" "eks_nodes" {
+  name_prefix = "konecta-erp-eks-nodes-${var.environment}-"
+  vpc_id      = var.vpc_id
+  
+  ingress {
+    from_port = 0
+    to_port   = 65535
+    protocol  = "tcp"
+    self      = true
+    description = "Node to node communication"
+  }
+  
+  ingress {
+    from_port       = 80
+    to_port         = 80
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
+    description     = "ALB to EKS nodes"
+  }
+  
+  ingress {
+    from_port       = 443
+    to_port         = 443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
+    description     = "ALB to EKS nodes"
+  }
+  
+  ingress {
+    from_port       = 22
+    to_port         = 22
+    protocol        = "tcp"
+    cidr_blocks     = [var.vpc_cidr]
+    description     = "SSH access from VPC (bastion host)"
+  }
+  
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "All outbound traffic"
+  }
+  
+  tags = {
+    Name = "konecta-erp-eks-nodes-sg-${var.environment}"
   }
 }

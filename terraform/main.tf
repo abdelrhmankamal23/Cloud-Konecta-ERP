@@ -22,17 +22,18 @@ provider "aws" {
 module "vpc" {
   source             = "./modules/vpc"
   environment        = var.environment
-  vpc_cidr          = var.vpc_cidr
+  vpc_cidr           = var.vpc_cidr
   availability_zones = var.availability_zones
   enable_nat_gateway = var.enable_nat_gateway
+  bastion_host_key_name = var.bastion_host_key_name
 }
 
 module "rds" {
   source               = "./modules/rds"
   environment          = var.environment
-  vpc_id              = module.vpc.vpc_id
-  private_subnet_ids  = module.vpc.private_subnet_ids
-  db_instance_class   = var.db_instance_class
+  vpc_id               = module.vpc.vpc_id
+  private_subnet_ids   = module.vpc.private_subnet_ids
+  db_instance_class    = var.db_instance_class
   db_allocated_storage = var.db_allocated_storage
 }
 
@@ -43,8 +44,8 @@ module "secrets" {
 }
 
 module "eks" {
-  source              = "./modules/eks"
-  environment         = var.environment
+  source             = "./modules/eks"
+  environment        = var.environment
   vpc_id             = module.vpc.vpc_id
   private_subnet_ids = module.vpc.private_subnet_ids
   public_subnet_ids  = module.vpc.public_subnet_ids
@@ -52,12 +53,15 @@ module "eks" {
   node_desired_size  = var.node_desired_size
   node_max_size      = var.node_max_size
   node_min_size      = var.node_min_size
+  key_name           = var.key_name
+  vpc_cidr           = module.vpc.vpc_cidr_block
 }
 
 module "s3" {
-  source      = "./modules/s3"
-  environment = var.environment
-  bucket_name = "konecta-erp-frontend-${var.environment}-${random_id.bucket_suffix.hex}"
+  source                     = "./modules/s3"
+  environment                = var.environment
+  bucket_name                = "konecta-erp-frontend-${var.environment}-${random_id.bucket_suffix.hex}"
+  cloudfront_distribution_id = module.cloudfront.cloudfront_distribution_id
 }
 
 module "cloudfront" {

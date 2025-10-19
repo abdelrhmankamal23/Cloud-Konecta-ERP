@@ -27,3 +27,13 @@ output "alb_dns_name" {
   description = "DNS name of the Application Load Balancer"
   value       = aws_lb.main.dns_name
 }
+
+output "eks_nodes_security_group_id" {
+  description = "Security group ID for EKS nodes"
+  value       = aws_security_group.eks_nodes.id
+}
+
+output "alb_target_group_arn" {
+  description = "ARN of the ALB target group"
+  value       = aws_lb_target_group.main.arn
+}

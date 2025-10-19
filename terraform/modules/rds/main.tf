@@ -38,7 +38,7 @@ data "aws_vpc" "main" {
 resource "aws_db_instance" "postgres" {
   identifier             = "konecta-erp-${var.environment}"
   engine                 = "postgres"
-  engine_version         = "15.4"
+  engine_version         = "15.8"
   instance_class         = var.db_instance_class
   allocated_storage      = var.db_allocated_storage
   max_allocated_storage  = var.db_allocated_storage * 2
