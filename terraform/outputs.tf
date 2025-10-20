@@ -67,3 +67,8 @@ output "bastion_private_ip" {
   description = "Private IP address of the bastion host"
   value       = module.vpc.bastion_private_ip
 }
+
+output "eks_cluster_ca_certificate" {
+  description = "Base64 encoded certificate data for EKS cluster"
+  value       = module.eks.cluster_ca_certificate
+}

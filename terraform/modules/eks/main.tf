@@ -10,6 +10,11 @@ resource "aws_eks_cluster" "main" {
     public_access_cidrs     = ["0.0.0.0/0"]
   }
 
+  access_config {
+    authentication_mode = "API_AND_CONFIG_MAP"
+    bootstrap_cluster_creator_admin_permissions = true
+  }
+
   tags = {
     Name = "konecta-erp-cluster-${var.environment}"
   }
@@ -68,6 +73,11 @@ resource "aws_iam_role_policy_attachment" "cluster_AmazonEKSClusterPolicy" {
   role       = aws_iam_role.cluster.name
 }
 
+resource "aws_iam_role_policy_attachment" "cluster_AmazonEKSServicePolicy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSServicePolicy"
+  role       = aws_iam_role.cluster.name
+}
+
 resource "aws_iam_role" "node" {
   name = "konecta-erp-node-role-${var.environment}"
 
@@ -96,6 +106,26 @@ resource "aws_iam_role_policy_attachment" "node_AmazonEKS_CNI_Policy" {
 resource "aws_iam_role_policy_attachment" "node_AmazonEC2ContainerRegistryReadOnly" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
   role       = aws_iam_role.node.name
+}
+
+# Give each team member full cluster admin access
+resource "aws_eks_access_entry" "team_admins" {
+  for_each       = toset(var.team_admin_arns)
+  cluster_name   = aws_eks_cluster.main.name
+  principal_arn  = each.key
+  type           = "STANDARD"
+}
+
+resource "aws_eks_access_policy_association" "team_admins_policy" {
+  for_each      = toset(var.team_admin_arns)
+  cluster_name  = aws_eks_cluster.main.name
+  principal_arn = each.key
+
+  policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+
+  access_scope {
+    type = "cluster"
+  }
 }
 
 resource "aws_ecr_repository" "services" {

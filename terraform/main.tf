@@ -55,6 +55,7 @@ module "eks" {
   node_min_size      = var.node_min_size
   key_name           = var.key_name
   vpc_cidr           = module.vpc.vpc_cidr_block
+  team_admin_arns = var.team_admin_arns
 }
 
 module "s3" {

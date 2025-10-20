@@ -80,3 +80,9 @@ variable "bastion_host_key_name" {
   description = "Name of the EC2 Key Pair to use for bastion host"
   type        = string
 }
+
+variable "team_admin_arns" {
+  description = "List of IAM user/role ARNs for EKS cluster admin access"
+  type        = list(string)
+  default     = []
+}
