@@ -89,3 +89,10 @@ module "cloudfront" {
 resource "random_id" "bucket_suffix" {
   byte_length = 4
 }
+
+module "cloudwatch" {
+  source            = "./modules/cloudwatch"
+  project_name      = "konecta-erp"
+  eks_cluster_name  = module.eks.cluster_name
+  node_group_name   = module.eks.node_group_name
+}
