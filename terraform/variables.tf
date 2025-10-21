@@ -76,7 +76,7 @@ variable "key_name" {
   default     = ""
 }
 
-variable "bastion_host_key_name" {
-  description = "Name of the EC2 Key Pair to use for bastion host"
-  type        = string
-}
+# variable "bastion_host_key_name" {
+#   description = "Name of the EC2 Key Pair to use for bastion host"
+#   type        = string
+# }

@@ -1,7 +1,7 @@
 resource "aws_eks_cluster" "main" {
   name     = "konecta-erp-${var.environment}"
   role_arn = aws_iam_role.cluster.arn
-  version  = "1.28"
+  version  = "1.32"
 
   vpc_config {
     subnet_ids              = concat(var.private_subnet_ids, var.public_subnet_ids)

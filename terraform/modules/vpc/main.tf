@@ -114,64 +114,64 @@ resource "aws_route_table_association" "private_2" {
   route_table_id = aws_route_table.private.id
 }
 
-# Bastion Host Security Group
-resource "aws_security_group" "bastion" {
-  name_prefix = "konecta-erp-bastion-${var.environment}-"
-  vpc_id      = aws_vpc.main.id
+# # Bastion Host Security Group
+# resource "aws_security_group" "bastion" {
+#   name_prefix = "konecta-erp-bastion-${var.environment}-"
+#   vpc_id      = aws_vpc.main.id
 
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "SSH access to bastion host"
-  }
+#   ingress {
+#     from_port   = 22
+#     to_port     = 22
+#     protocol    = "tcp"
+#     cidr_blocks = ["0.0.0.0/0"]
+#     description = "SSH access to bastion host"
+#   }
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "All outbound traffic"
-  }
+#   egress {
+#     from_port   = 0
+#     to_port     = 0
+#     protocol    = "-1"
+#     cidr_blocks = ["0.0.0.0/0"]
+#     description = "All outbound traffic"
+#   }
 
-  tags = {
-    Name = "konecta-erp-bastion-sg-${var.environment}"
-  }
-}
+#   tags = {
+#     Name = "konecta-erp-bastion-sg-${var.environment}"
+#   }
+# }
 
-# Bastion Host Instance
-resource "aws_instance" "bastion" {
-  ami                    = data.aws_ami.amazon_linux.id
-  instance_type          = "t2.micro"
-  key_name               = var.bastion_host_key_name
-  subnet_id              = aws_subnet.public_1.id
-  vpc_security_group_ids = [aws_security_group.bastion.id]
+# # Bastion Host Instance
+# resource "aws_instance" "bastion" {
+#   ami                    = data.aws_ami.amazon_linux.id
+#   instance_type          = "t2.micro"
+#   key_name               = var.bastion_host_key_name
+#   subnet_id              = aws_subnet.public_1.id
+#   vpc_security_group_ids = [aws_security_group.bastion.id]
   
-  associate_public_ip_address = true
+#   associate_public_ip_address = true
 
-  user_data = base64encode(<<-EOF
-    #!/bin/bash
-    yum update -y
-    yum install -y kubectl
-    aws eks update-kubeconfig --region ${data.aws_region.current.name} --name konecta-erp-${var.environment}
-  EOF
-  )
+#   # user_data = base64encode(<<-EOF
+#   #   #!/bin/bash
+#   #   yum update -y
+#   #   yum install -y kubectl
+#   #   aws eks update-kubeconfig --region ${data.aws_region.current.name} --name konecta-erp-${var.environment}
+#   # EOF
+#   # )
 
-  tags = {
-    Name = "konecta-erp-bastion-${var.environment}"
-  }
-}
+#   tags = {
+#     Name = "konecta-erp-bastion-${var.environment}"
+#   }
+# }
 
-# Data sources for bastion host
-data "aws_ami" "amazon_linux" {
-  most_recent = true
-  owners      = ["amazon"]
+# # Data sources for bastion host
+# data "aws_ami" "amazon_linux" {
+#   most_recent = true
+#   owners      = ["amazon"]
 
-  filter {
-    name   = "name"
-    values = ["amzn2-ami-hvm-*-x86_64-gp2"]
-  }
-}
+#   filter {
+#     name   = "name"
+#     values = ["amzn2-ami-hvm-*-x86_64-gp2"]
+#   }
+# }
 
-data "aws_region" "current" {}
+# data "aws_region" "current" {}

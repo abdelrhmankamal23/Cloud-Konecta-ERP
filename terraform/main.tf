@@ -25,23 +25,23 @@ module "vpc" {
   vpc_cidr           = var.vpc_cidr
   availability_zones = var.availability_zones
   enable_nat_gateway = var.enable_nat_gateway
-  bastion_host_key_name = var.bastion_host_key_name
+  # bastion_host_key_name = var.bastion_host_key_name
 }
 
-module "rds" {
-  source               = "./modules/rds"
-  environment          = var.environment
-  vpc_id               = module.vpc.vpc_id
-  private_subnet_ids   = module.vpc.private_subnet_ids
-  db_instance_class    = var.db_instance_class
-  db_allocated_storage = var.db_allocated_storage
-}
+# module "rds" {
+#   source               = "./modules/rds"
+#   environment          = var.environment
+#   vpc_id               = module.vpc.vpc_id
+#   private_subnet_ids   = module.vpc.private_subnet_ids
+#   db_instance_class    = var.db_instance_class
+#   db_allocated_storage = var.db_allocated_storage
+# }
 
-module "secrets" {
-  source      = "./modules/secrets"
-  environment = var.environment
-  db_password = module.rds.db_password
-}
+# module "secrets" {
+#   source      = "./modules/secrets"
+#   environment = var.environment
+#   db_password = module.rds.db_password
+# }
 
 module "eks" {
   source             = "./modules/eks"
@@ -57,19 +57,19 @@ module "eks" {
   vpc_cidr           = module.vpc.vpc_cidr_block
 }
 
-module "s3" {
-  source                     = "./modules/s3"
-  environment                = var.environment
-  bucket_name                = "konecta-erp-frontend-${var.environment}-${random_id.bucket_suffix.hex}"
-  cloudfront_distribution_id = module.cloudfront.cloudfront_distribution_id
-}
+# module "s3" {
+#   source                     = "./modules/s3"
+#   environment                = var.environment
+#   bucket_name                = "konecta-erp-frontend-${var.environment}-${random_id.bucket_suffix.hex}"
+#   cloudfront_distribution_id = module.cloudfront.cloudfront_distribution_id
+# }
 
-module "cloudfront" {
-  source           = "./modules/cloudfront"
-  environment      = var.environment
-  s3_bucket_domain = module.s3.bucket_domain_name
-  alb_domain       = module.eks.alb_dns_name
-}
+# module "cloudfront" {
+#   source           = "./modules/cloudfront"
+#   environment      = var.environment
+#   s3_bucket_domain = module.s3.bucket_domain_name
+#   alb_domain       = module.eks.alb_dns_name
+# }
 
 resource "random_id" "bucket_suffix" {
   byte_length = 4
