@@ -1,10 +1,9 @@
 terraform {
   backend "s3" {
-    bucket = "konecta-erp-terraform-state"
-    key    = "terraform.tfstate"
+    bucket = "konecta-erp-terraform-state-us-east"
+    key    = "konecta-erp/terraform.tfstate"
     workspace_key_prefix = "env"
-    region = "eu-west-1"
+    region = "us-east-1"
     encrypt = true
-    use_lockfile = true
   }
 }

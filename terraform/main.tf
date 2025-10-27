@@ -69,30 +69,26 @@ module "eks" {
   team_admin_arns    = var.team_admin_arns
 }
 
-module "s3" {
-  source = "./modules/s3"
+module "ecr" {
+  source = "./modules/ecr"
   
-  environment                = local.environment
-  bucket_name                = "konecta-erp-frontend-${local.environment}-${random_id.bucket_suffix.hex}"
-  cloudfront_distribution_id = local.is_prod ? module.cloudfront[0].cloudfront_distribution_id : ""
+  environment     = local.environment
+  node_role_name  = module.eks.node_role_name
 }
 
 module "cloudfront" {
   count  = local.is_prod ? 1 : 0
   source = "./modules/cloudfront"
   
-  environment      = local.environment
-  s3_bucket_domain = module.s3.bucket_domain_name
-  alb_domain       = module.eks.alb_dns_name
-}
-
-resource "random_id" "bucket_suffix" {
-  byte_length = 4
+  environment  = local.environment
+  alb_domain   = module.eks.alb_dns_name
+  cloudfront_log_bucket = ""
+  waf_web_acl_id = ""
 }
 
 module "cloudwatch" {
   source            = "./modules/cloudwatch"
   project_name      = "konecta-erp"
   eks_cluster_name  = module.eks.cluster_name
-  node_group_name   = module.eks.node_group_name
+  node_group_name   = "konecta-erp-nodes-${local.environment}"
 }

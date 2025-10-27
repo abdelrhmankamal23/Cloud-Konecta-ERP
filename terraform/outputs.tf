@@ -1,9 +1,3 @@
-# Common outputs
-output "s3_bucket_name" {
-  description = "Name of the S3 bucket for frontend"
-  value       = module.s3.bucket_name
-}
-
 # Deployment outputs
 output "vpc_id" {
   description = "ID of the VPC"
@@ -15,9 +9,14 @@ output "alb_dns_name" {
   value       = module.eks.alb_dns_name
 }
 
+output "ecr_repositories" {
+  description = "Map of ECR repository URLs"
+  value       = module.ecr.ecr_repositories
+}
+
 output "cloudfront_domain" {
-  description = "CloudFront distribution domain name"
-  value       = terraform.workspace == "prod" ? module.cloudfront[0].cloudfront_domain : null
+  description = "CloudFront distribution domain name (HTTPS endpoint)"
+  value       = local.is_prod ? module.cloudfront[0].cloudfront_domain : null
 }
 
 output "db_endpoint" {

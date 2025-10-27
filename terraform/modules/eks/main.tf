@@ -128,16 +128,6 @@ resource "aws_eks_access_policy_association" "team_admins_policy" {
   }
 }
 
-resource "aws_ecr_repository" "services" {
-  for_each = toset(["auth-service", "hr-service", "finance-service", "operation-service", "gateway-service", "discovery-server", "config-server", "reporting-service"])
-  name     = "konecta-erp/${each.key}"
-  image_scanning_configuration {
-    scan_on_push = true
-  }
-  tags = {
-    Name = "konecta-erp-${each.key}"
-  }
-}
 
 resource "aws_security_group" "alb" {
   name   = "konecta-erp-alb-${var.environment}"
