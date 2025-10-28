@@ -10,6 +10,24 @@ variable "environment" {
   default     = "prod"
 }
 
+variable "deployment_type" {
+  description = "Deployment type: always 'full' but controls which components are enabled"
+  type        = string
+  default     = "full"
+}
+
+variable "enable_rds" {
+  description = "Enable RDS database"
+  type        = bool
+  default     = true
+}
+
+variable "enable_eks" {
+  description = "Enable EKS cluster"
+  type        = bool
+  default     = true
+}
+
 variable "vpc_cidr" {
   description = "CIDR block for VPC"
   type        = string
@@ -76,7 +94,14 @@ variable "key_name" {
   default     = ""
 }
 
-# variable "bastion_host_key_name" {
-#   description = "Name of the EC2 Key Pair to use for bastion host"
-#   type        = string
-# }
+variable "bastion_host_key_name" {
+  description = "Name of the EC2 Key Pair to use for bastion host"
+  type        = string
+  default     = ""
+}
+
+variable "team_admin_arns" {
+  description = "List of IAM user/role ARNs for EKS cluster admin access"
+  type        = list(string)
+  default     = []
+}

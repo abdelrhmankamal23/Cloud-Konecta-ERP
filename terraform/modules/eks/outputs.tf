@@ -18,9 +18,14 @@ output "node_group_arn" {
   value       = aws_eks_node_group.main.arn
 }
 
-output "ecr_repositories" {
-  description = "Map of ECR repository URLs"
-  value       = { for k, v in aws_ecr_repository.services : k => v.repository_url }
+output "node_role_name" {
+  description = "Name of the EKS node IAM role"
+  value       = aws_iam_role.node.name
+}
+
+output "node_group_name" {
+  description = "Name of the EKS node group"
+  value       = aws_eks_node_group.main.node_group_name
 }
 
 output "alb_dns_name" {
@@ -36,4 +41,14 @@ output "eks_nodes_security_group_id" {
 output "alb_target_group_arn" {
   description = "ARN of the ALB target group"
   value       = aws_lb_target_group.main.arn
+}
+
+output "cluster_ca_certificate" {
+  description = "Base64 encoded certificate data required to communicate with the cluster"
+  value       = aws_eks_cluster.main.certificate_authority[0].data
+}
+
+output "cluster_security_group_id" {
+  description = "Security group ID attached to the EKS cluster"
+  value       = aws_eks_cluster.main.vpc_config[0].cluster_security_group_id
 }
