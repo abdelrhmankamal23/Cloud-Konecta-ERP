@@ -1,10 +1,12 @@
+
+
+
+variable "fargate_pod_execution_role_name" {
+  description = "Name of the Fargate Pod Execution Role for ECR access"
+  type        = string
+}
+
 variable "environment" {
-  description = "Environment name (dev, staging, prod)"
+  description = "Deployment environment (e.g., dev, prod)"
   type        = string
 }
-
-variable "node_role_name" {
-  description = "Name of the EKS node IAM role for ECR access"
-  type        = string
-}
-
