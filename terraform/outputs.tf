@@ -33,3 +33,14 @@ output "eks_cluster_endpoint" {
   description = "EKS cluster endpoint"
   value       = module.eks.cluster_endpoint
 }
+
+# Added: expose fargate profile and pod execution role for downstream consumers
+output "eks_fargate_profile_name" {
+  description = "Fargate profile name for the EKS cluster (if available)"
+  value       = try(module.eks.fargate_profile_name, null)
+}
+
+output "eks_fargate_pod_execution_role_name" {
+  description = "IAM role name used by Fargate pods (if available)"
+  value       = try(module.eks.fargate_pod_execution_role_name, null)
+}
