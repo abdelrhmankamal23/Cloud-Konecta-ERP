@@ -66,13 +66,11 @@ module "eks" {
 
 module "ecr" {
   source = "./modules/ecr"
-  
-  environment = local.environment
 
-  # With Fargate there is no node IAM role; pass the Fargate pod execution role name
-  # (module.eks must export fargate_pod_execution_role_name in the eks module outputs)
-  fargate_pod_execution_role_name = try(module.eks.fargate_pod_execution_role_name, null)
+  environment                      = local.environment
+  fargate_pod_execution_role_name  = module.eks.fargate_pod_execution_role_name
 }
+
 
 module "cloudfront" {
   count  = local.is_prod ? 1 : 0
@@ -84,12 +82,3 @@ module "cloudfront" {
   waf_web_acl_id        = ""
 }
 
-module "cloudwatch" {
-  source           = "./modules/cloudwatch"
-  project_name     = "konecta-erp"
-  eks_cluster_name = module.eks.cluster_name
-
-  # Node group name removed because cluster is now Fargate-based.
-  # If cloudwatch module requires this, update that module to accept a null/optional value
-  # or to monitor Fargate metrics instead.
-}
