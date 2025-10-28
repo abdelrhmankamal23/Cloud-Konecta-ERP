@@ -58,38 +58,8 @@ variable "db_allocated_storage" {
   default     = 20
 }
 
-variable "node_instance_type" {
-  description = "EC2 instance type for EKS worker nodes"
-  type        = string
-  default     = "t3.medium"
-}
-
-variable "node_desired_size" {
-  description = "Desired number of worker nodes"
-  type        = number
-  default     = 2
-}
-
-variable "node_max_size" {
-  description = "Maximum number of worker nodes"
-  type        = number
-  default     = 4
-}
-
-variable "node_min_size" {
-  description = "Minimum number of worker nodes"
-  type        = number
-  default     = 1
-}
-
 variable "ssl_certificate_arn" {
   description = "ARN of the SSL certificate for HTTPS listener (optional)"
-  type        = string
-  default     = ""
-}
-
-variable "key_name" {
-  description = "EC2 Key Pair name for SSH access"
   type        = string
   default     = ""
 }

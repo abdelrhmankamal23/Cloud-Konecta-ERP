@@ -34,33 +34,13 @@ output "eks_cluster_endpoint" {
   value       = module.eks.cluster_endpoint
 }
 
-
-# output "db_secret_arn" {
-#   description = "ARN of the database password secret"
-#   value       = module.secrets.db_secret_arn
-# }
-
-# output "jwt_secret_arn" {
-#   description = "ARN of the JWT secret"
-#   value       = module.secrets.jwt_secret_arn
-# }
-
-output "eks_nodes_security_group_id" {
-  description = "Security group ID for EKS nodes"
-  value       = module.eks.eks_nodes_security_group_id
+# Added: expose fargate profile and pod execution role for downstream consumers
+output "eks_fargate_profile_name" {
+  description = "Fargate profile name for the EKS cluster (if available)"
+  value       = try(module.eks.fargate_profile_name, null)
 }
 
-output "alb_target_group_arn" {
-  description = "ARN of the ALB target group"
-  value       = module.eks.alb_target_group_arn
+output "eks_fargate_pod_execution_role_name" {
+  description = "IAM role name used by Fargate pods (if available)"
+  value       = try(module.eks.fargate_pod_execution_role_name, null)
 }
-
-# output "bastion_public_ip" {
-#   description = "Public IP address of the bastion host"
-#   value       = module.vpc.bastion_public_ip
-# }
-
-# output "bastion_private_ip" {
-#   description = "Private IP address of the bastion host"
-#   value       = module.vpc.bastion_private_ip
-# }

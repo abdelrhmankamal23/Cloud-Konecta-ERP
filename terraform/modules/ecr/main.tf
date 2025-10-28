@@ -1,6 +1,15 @@
 # ECR Repository for Docker Images
 resource "aws_ecr_repository" "services" {
-  for_each = toset(["auth-service", "hr-service", "finance-service", "operation-service", "gateway-service", "discovery-server", "config-server", "reporting-service"])
+  for_each = toset([
+    "auth-service",
+    "hr-service",
+    "finance-service",
+    "operation-service",
+    "gateway-service",
+    "discovery-server",
+    "config-server",
+    "reporting-service"
+  ])
   
   name                 = "konecta-erp/${each.key}"
   image_tag_mutability = "MUTABLE"
@@ -32,9 +41,9 @@ resource "aws_ecr_lifecycle_policy" "services" {
         rulePriority = 1
         description  = "Keep last 10 images"
         selection = {
-          tagStatus     = "any"
-          countType     = "imageCountMoreThan"
-          countNumber   = 10
+          tagStatus   = "any"
+          countType   = "imageCountMoreThan"
+          countNumber = 10
         }
         action = {
           type = "expire"
@@ -44,10 +53,10 @@ resource "aws_ecr_lifecycle_policy" "services" {
   })
 }
 
-# IAM Policy for EKS Node Group to access ECR
+# IAM Policy for Fargate Pod Execution Role to access ECR
 resource "aws_iam_role_policy" "ecr_access" {
   name = "konecta-erp-ecr-access-${var.environment}"
-  role = var.node_role_name
+  role = var.fargate_pod_execution_role_name
 
   policy = jsonencode({
     Version = "2012-10-17"
@@ -68,4 +77,3 @@ resource "aws_iam_role_policy" "ecr_access" {
     ]
   })
 }
-

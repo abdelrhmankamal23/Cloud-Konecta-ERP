@@ -1,3 +1,6 @@
+###############################################
+# EKS Cluster
+###############################################
 resource "aws_eks_cluster" "main" {
   name     = "konecta-erp-${var.environment}"
   role_arn = aws_iam_role.cluster.arn
@@ -24,35 +27,9 @@ resource "aws_eks_cluster" "main" {
   ]
 }
 
-resource "aws_eks_node_group" "main" {
-  cluster_name    = aws_eks_cluster.main.name
-  node_group_name = "konecta-erp-nodes-${var.environment}"
-  node_role_arn   = aws_iam_role.node.arn
-  subnet_ids      = var.private_subnet_ids
-
-  scaling_config {
-    desired_size = var.node_desired_size
-    max_size     = var.node_max_size
-    min_size     = var.node_min_size
-  }
-
-  instance_types = [var.node_instance_type]
-
-  remote_access {
-    ec2_ssh_key = var.key_name
-  }
-
-  tags = {
-    Name = "konecta-erp-nodes-${var.environment}"
-  }
-
-  depends_on = [
-    aws_iam_role_policy_attachment.node_AmazonEKSWorkerNodePolicy,
-    aws_iam_role_policy_attachment.node_AmazonEKS_CNI_Policy,
-    aws_iam_role_policy_attachment.node_AmazonEC2ContainerRegistryReadOnly,
-  ]
-}
-
+###############################################
+# IAM Role for Cluster
+###############################################
 resource "aws_iam_role" "cluster" {
   name = "konecta-erp-cluster-role-${var.environment}"
 
@@ -78,37 +55,53 @@ resource "aws_iam_role_policy_attachment" "cluster_AmazonEKSServicePolicy" {
   role       = aws_iam_role.cluster.name
 }
 
-resource "aws_iam_role" "node" {
-  name = "konecta-erp-node-role-${var.environment}"
+###############################################
+# IAM Role for Fargate Pods
+###############################################
+resource "aws_iam_role" "fargate" {
+  name = "konecta-erp-fargate-role-${var.environment}"
 
   assume_role_policy = jsonencode({
+    Version = "2012-10-17"
     Statement = [{
-      Action = "sts:AssumeRole"
       Effect = "Allow"
       Principal = {
-        Service = "ec2.amazonaws.com"
+        Service = "eks-fargate-pods.amazonaws.com"
       }
+      Action = "sts:AssumeRole"
     }]
-    Version = "2012-10-17"
   })
 }
 
-resource "aws_iam_role_policy_attachment" "node_AmazonEKSWorkerNodePolicy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
-  role       = aws_iam_role.node.name
+resource "aws_iam_role_policy_attachment" "fargate_execution_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSFargatePodExecutionRolePolicy"
+  role       = aws_iam_role.fargate.name
 }
 
-resource "aws_iam_role_policy_attachment" "node_AmazonEKS_CNI_Policy" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
-  role       = aws_iam_role.node.name
+###############################################
+# Fargate Profile
+###############################################
+resource "aws_eks_fargate_profile" "main" {
+  cluster_name           = aws_eks_cluster.main.name
+  fargate_profile_name   = "konecta-erp-fargate-${var.environment}"
+  pod_execution_role_arn = aws_iam_role.fargate.arn
+  subnet_ids             = var.private_subnet_ids
+
+   selector {
+    namespace = "*"
+  }
+  tags = {
+    Name = "konecta-erp-fargate-${var.environment}"
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.fargate_execution_policy
+  ]
 }
 
-resource "aws_iam_role_policy_attachment" "node_AmazonEC2ContainerRegistryReadOnly" {
-  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-  role       = aws_iam_role.node.name
-}
-
-# Give each team member full cluster admin access
+###############################################
+# Give Each Team Member Full Cluster Admin Access
+###############################################
 resource "aws_eks_access_entry" "team_admins" {
   for_each       = toset(var.team_admin_arns)
   cluster_name   = aws_eks_cluster.main.name
@@ -128,28 +121,34 @@ resource "aws_eks_access_policy_association" "team_admins_policy" {
   }
 }
 
-
+###############################################
+# Application Load Balancer (unchanged)
+###############################################
 resource "aws_security_group" "alb" {
   name   = "konecta-erp-alb-${var.environment}"
   vpc_id = var.vpc_id
+
   ingress {
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
   ingress {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
   tags = {
     Name = "konecta-erp-alb-sg-${var.environment}"
   }
@@ -161,6 +160,7 @@ resource "aws_lb" "main" {
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
   subnets            = var.public_subnet_ids
+
   tags = {
     Name = "konecta-erp-alb-${var.environment}"
   }
@@ -201,54 +201,5 @@ resource "aws_lb_listener" "main" {
 
   tags = {
     Name = "konecta-erp-listener-${var.environment}"
-  }
-}
-
-resource "aws_security_group" "eks_nodes" {
-  name_prefix = "konecta-erp-eks-nodes-${var.environment}-"
-  vpc_id      = var.vpc_id
-  
-  ingress {
-    from_port = 0
-    to_port   = 65535
-    protocol  = "tcp"
-    self      = true
-    description = "Node to node communication"
-  }
-  
-  ingress {
-    from_port       = 80
-    to_port         = 80
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
-    description     = "ALB to EKS nodes"
-  }
-  
-  ingress {
-    from_port       = 443
-    to_port         = 443
-    protocol        = "tcp"
-    security_groups = [aws_security_group.alb.id]
-    description     = "ALB to EKS nodes"
-  }
-  
-  ingress {
-    from_port       = 22
-    to_port         = 22
-    protocol        = "tcp"
-    cidr_blocks     = [var.vpc_cidr]
-    description     = "SSH access from VPC (bastion host)"
-  }
-  
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-    description = "All outbound traffic"
-  }
-  
-  tags = {
-    Name = "konecta-erp-eks-nodes-sg-${var.environment}"
   }
 }
