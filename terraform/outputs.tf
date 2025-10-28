@@ -1,3 +1,4 @@
+# Deployment outputs
 output "vpc_id" {
   description = "ID of the VPC"
   value       = module.vpc.vpc_id
@@ -8,19 +9,19 @@ output "alb_dns_name" {
   value       = module.eks.alb_dns_name
 }
 
-output "cloudfront_domain" {
-  description = "CloudFront distribution domain name"
-  value       = module.cloudfront.cloudfront_domain
+output "ecr_repositories" {
+  description = "Map of ECR repository URLs"
+  value       = module.ecr.ecr_repositories
 }
 
-output "s3_bucket_name" {
-  description = "Name of the S3 bucket for frontend"
-  value       = module.s3.bucket_name
+output "cloudfront_domain" {
+  description = "CloudFront distribution domain name (HTTPS endpoint)"
+  value       = local.is_prod ? module.cloudfront[0].cloudfront_domain : null
 }
 
 output "db_endpoint" {
   description = "RDS database endpoint"
-  value       = module.rds.db_endpoint
+  value       = terraform.workspace == "prod" ? module.rds[0].db_endpoint : null
 }
 
 output "eks_cluster_name" {
@@ -33,17 +34,13 @@ output "eks_cluster_endpoint" {
   value       = module.eks.cluster_endpoint
 }
 
-output "ecr_repositories" {
-  description = "Map of ECR repository URLs"
-  value       = module.eks.ecr_repositories
+# Added: expose fargate profile and pod execution role for downstream consumers
+output "eks_fargate_profile_name" {
+  description = "Fargate profile name for the EKS cluster (if available)"
+  value       = try(module.eks.fargate_profile_name, null)
 }
 
-output "db_secret_arn" {
-  description = "ARN of the database password secret"
-  value       = module.secrets.db_secret_arn
-}
-
-output "jwt_secret_arn" {
-  description = "ARN of the JWT secret"
-  value       = module.secrets.jwt_secret_arn
+output "eks_fargate_pod_execution_role_name" {
+  description = "IAM role name used by Fargate pods (if available)"
+  value       = try(module.eks.fargate_pod_execution_role_name, null)
 }
