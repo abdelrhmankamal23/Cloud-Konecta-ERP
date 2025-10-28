@@ -532,3 +532,7 @@ curl http://$(terraform output -raw alb_dns_name)/health
 2- Environment variable (TF_VAR_name)  
 3- terraform.tfvars / .auto.tfvars  
 4- CLI -var flag  
+
+
+
+terraform plan -var-file="dev.tfvars"

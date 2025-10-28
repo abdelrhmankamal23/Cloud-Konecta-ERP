@@ -2,7 +2,8 @@
 
 # Optional: SNS topic for notifications
 resource "aws_sns_topic" "alert_topic" {
-  name = "${var.project_name}-eks-alert-topic"
+  name              = "${var.project_name}-eks-alert-topic"
+  kms_master_key_id = "alias/aws/sns"
 }
 
 # EKS CPU Utilization alarm

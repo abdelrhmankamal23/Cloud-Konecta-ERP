@@ -7,7 +7,7 @@ resource "aws_eks_cluster" "main" {
     subnet_ids              = concat(var.private_subnet_ids, var.public_subnet_ids)
     endpoint_private_access = true
     endpoint_public_access  = true
-    public_access_cidrs     = ["0.0.0.0/0"]
+    public_access_cidrs     = var.allowed_cidr_blocks
   }
 
   access_config {
@@ -38,9 +38,7 @@ resource "aws_eks_node_group" "main" {
 
   instance_types = [var.node_instance_type]
 
-  remote_access {
-    ec2_ssh_key = var.key_name
-  }
+  # SSH access removed for security - use kubectl exec or AWS Systems Manager Session Manager instead
 
   tags = {
     Name = "konecta-erp-nodes-${var.environment}"
@@ -128,16 +126,6 @@ resource "aws_eks_access_policy_association" "team_admins_policy" {
   }
 }
 
-resource "aws_ecr_repository" "services" {
-  for_each = toset(["auth-service", "hr-service", "finance-service", "operation-service", "gateway-service", "discovery-server", "config-server", "reporting-service"])
-  name     = "konecta-erp/${each.key}"
-  image_scanning_configuration {
-    scan_on_push = true
-  }
-  tags = {
-    Name = "konecta-erp-${each.key}"
-  }
-}
 
 resource "aws_security_group" "alb" {
   name   = "konecta-erp-alb-${var.environment}"
@@ -242,13 +230,7 @@ resource "aws_security_group" "eks_nodes" {
     description     = "ALB to EKS nodes"
   }
   
-  ingress {
-    from_port       = 22
-    to_port         = 22
-    protocol        = "tcp"
-    cidr_blocks     = [var.vpc_cidr]
-    description     = "SSH access from VPC (bastion host)"
-  }
+  # SSH access removed - use AWS Systems Manager Session Manager for node access if needed
   
   egress {
     from_port   = 0

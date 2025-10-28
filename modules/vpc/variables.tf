@@ -10,8 +10,12 @@ variable "vpc_cidr" {
 }
 
 variable "availability_zones" {
-  description = "List of availability zones"
-  type        = list(string)
+  description = "Map of availability zones"
+  type        = map(string)
+  default = {
+    zone-1 = "us-east-1a"
+    zone-2 = "us-east-1b"
+    }
 }
 
 variable "enable_nat_gateway" {

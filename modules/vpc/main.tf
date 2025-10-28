@@ -18,7 +18,7 @@ resource "aws_internet_gateway" "main" {
 resource "aws_subnet" "public_1" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.0.1.0/24"
-  availability_zone       = var.availability_zones[0]
+  availability_zone       = var.availability_zones.zone-1
   map_public_ip_on_launch = true
   tags = {
     Name = "konecta-erp-public-${var.environment}-1"
@@ -28,7 +28,7 @@ resource "aws_subnet" "public_1" {
 resource "aws_subnet" "public_2" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.0.2.0/24"
-  availability_zone       = var.availability_zones[1]
+  availability_zone       = var.availability_zones.zone-2
   map_public_ip_on_launch = true
   tags = {
     Name = "konecta-erp-public-${var.environment}-2"
@@ -38,7 +38,7 @@ resource "aws_subnet" "public_2" {
 resource "aws_subnet" "private_1" {
   vpc_id            = aws_vpc.main.id
   cidr_block        = "10.0.11.0/24"
-  availability_zone = var.availability_zones[0]
+  availability_zone = var.availability_zones.zone-1
   tags = {
     Name = "konecta-erp-private-${var.environment}-1"
   }
@@ -47,7 +47,7 @@ resource "aws_subnet" "private_1" {
 resource "aws_subnet" "private_2" {
   vpc_id            = aws_vpc.main.id
   cidr_block        = "10.0.12.0/24"
-  availability_zone = var.availability_zones[1]
+  availability_zone = var.availability_zones.zone-2
   
   tags = {
     Name = "konecta-erp-private-${var.environment}-2"
@@ -66,7 +66,6 @@ resource "aws_route_table" "public" {
 }
 
 resource "aws_eip" "nat" {
-  count  = var.enable_nat_gateway ? 1 : 0
   domain = "vpc"
   tags = {
     Name = "konecta-erp-nat-eip-${var.environment}"
@@ -74,8 +73,7 @@ resource "aws_eip" "nat" {
 }
 
 resource "aws_nat_gateway" "main" {
-  count         = var.enable_nat_gateway ? 1 : 0
-  allocation_id = aws_eip.nat[0].id
+  allocation_id = aws_eip.nat.id
   subnet_id     = aws_subnet.public_1.id
   tags = {
     Name = "konecta-erp-nat-gateway-${var.environment}"
@@ -87,7 +85,7 @@ resource "aws_route_table" "private" {
   vpc_id = aws_vpc.main.id
   route {
     cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = var.enable_nat_gateway ? aws_nat_gateway.main[0].id : null
+    nat_gateway_id = aws_nat_gateway.main.id
   }
   tags = {
     Name = "konecta-erp-private-rt-${var.environment}"

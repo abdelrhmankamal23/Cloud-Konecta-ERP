@@ -42,10 +42,12 @@ variable "node_min_size" {
   default     = 1
 }
 
-variable "key_name" {
-  description = "EC2 Key Pair name for SSH access to EKS nodes"
-  type        = string
-  default     = ""
+variable "allowed_cidr_blocks" {
+  description = "List of CIDR blocks allowed to access EKS API server publicly"
+  type        = list(string)
+  default     = [
+    "0.0.0.0/0"
+  ]
 }
 
 variable "vpc_cidr" {

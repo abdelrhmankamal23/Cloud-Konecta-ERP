@@ -35,9 +35,8 @@ variable "vpc_cidr" {
 }
 
 variable "availability_zones" {
-  description = "List of availability zones"
-  type        = list(string)
-  default     = ["us-east-1a", "us-east-1b"]
+  description = "Map of availability zones"
+  type        = map(string)
 }
 
 variable "enable_nat_gateway" {
@@ -88,10 +87,12 @@ variable "ssl_certificate_arn" {
   default     = ""
 }
 
-variable "key_name" {
-  description = "EC2 Key Pair name for SSH access"
-  type        = string
-  default     = ""
+variable "allowed_cidr_blocks" {
+  description = "List of CIDR blocks allowed to access EKS API server publicly"
+  type        = list(string)
+  default = [
+    "0.0.0.0/0"
+  ]
 }
 
 variable "bastion_host_key_name" {
