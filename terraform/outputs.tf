@@ -34,10 +34,6 @@ output "eks_cluster_endpoint" {
   value       = module.eks.cluster_endpoint
 }
 
-output "ecr_repositories" {
-  description = "Map of ECR repository URLs"
-  value       = module.eks.ecr_repositories
-}
 
 # output "db_secret_arn" {
 #   description = "ARN of the database password secret"

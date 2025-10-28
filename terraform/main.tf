@@ -35,7 +35,6 @@ module "vpc" {
 }
 
 module "rds" {
-  count  = local.is_prod ? 1 : 0
   source = "./modules/rds"
   
   environment          = local.environment
@@ -45,11 +44,11 @@ module "rds" {
   db_allocated_storage = var.db_allocated_storage
 }
 
-# module "secrets" {
-#   source      = "./modules/secrets"
-#   environment = var.environment
-#   db_password = module.rds.db_password
-# }
+module "secrets" {
+  source      = "./modules/secrets"
+  environment = var.environment
+  db_password = module.rds.db_password
+}
 
 module "eks" {
   source = "./modules/eks"
@@ -75,7 +74,6 @@ module "ecr" {
 }
 
 module "cloudfront" {
-  count  = local.is_prod ? 1 : 0
   source = "./modules/cloudfront"
   
   environment  = local.environment
