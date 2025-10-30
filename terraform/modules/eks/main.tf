@@ -139,6 +139,7 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_agent_irsa_attach" {
 # EKS Add-on: CloudWatch Observability
 ###############################################
 resource "aws_eks_addon" "cloudwatch_observability" {
+  count                       = var.enable_cloudwatch_observability_addon ? 1 : 0
   cluster_name                = aws_eks_cluster.main.name
   addon_name                  = "amazon-cloudwatch-observability"
   resolve_conflicts_on_create = "OVERWRITE"
@@ -149,6 +150,11 @@ resource "aws_eks_addon" "cloudwatch_observability" {
     aws_iam_openid_connect_provider.cluster,
     aws_iam_role_policy_attachment.cloudwatch_agent_irsa_attach
   ]
+
+  timeouts {
+    create = "40m"
+    update = "40m"
+  }
 }
 
 ###############################################

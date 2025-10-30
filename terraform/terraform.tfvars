@@ -10,7 +10,7 @@ bastion_host_key_name = "aws-key-pair"
 team_admin_arns = [
   "arn:aws:iam::712416034227:user/AdminOne",
   "arn:aws:iam::712416034227:user/mohamed_ashraf",
-  "arn:aws:iam::712416034227:user/malak_wagdy"
+  # "arn:aws:iam::712416034227:user/malak_wagdy"
 ]
 
 # ssl_certificate_arn = "arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012"

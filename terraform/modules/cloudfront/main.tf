@@ -1,3 +1,11 @@
+data "aws_cloudfront_cache_policy" "managed_caching_optimized" {
+  name = "Managed-CachingOptimized"
+}
+
+data "aws_cloudfront_response_headers_policy" "managed_security_headers" {
+  name = "Managed-SecurityHeadersPolicy"
+}
+
 resource "aws_cloudfront_distribution" "main" {
   enabled             = true
   default_root_object = "index.html"
@@ -11,7 +19,7 @@ resource "aws_cloudfront_distribution" "main" {
       http_port              = 80
       https_port             = 443
       origin_protocol_policy = "https-only"
-      origin_ssl_protocols   = ["TLSv1.2", "TLSv1.3"]
+      origin_ssl_protocols   = ["TLSv1.2"]
       origin_read_timeout   = 60
       origin_keepalive_timeout = 5
     }
@@ -29,7 +37,7 @@ resource "aws_cloudfront_distribution" "main" {
     allowed_methods = ["DELETE", "GET", "HEAD", "OPTIONS", "PATCH", "POST", "PUT"]
     cached_methods  = ["GET", "HEAD"]
     
-    cache_policy_id = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # Managed-CachingOptimizedForCompression
+    cache_policy_id = data.aws_cloudfront_cache_policy.managed_caching_optimized.id
     
     compress = true
     
@@ -37,7 +45,7 @@ resource "aws_cloudfront_distribution" "main" {
     default_ttl = 86400
     max_ttl     = 31536000
     
-    response_headers_policy_id = "67f7725c-6f97-4210-82d7-5512b554e877" # Managed-SecurityHeadersPolicy
+    response_headers_policy_id = data.aws_cloudfront_response_headers_policy.managed_security_headers.id
   }
 
   # WAF Web ACL for security (optional but recommended)

@@ -33,3 +33,9 @@ variable "ssl_certificate_arn" {
   type        = string
   default     = ""
 }
+
+variable "enable_cloudwatch_observability_addon" {
+  description = "Enable the amazon-cloudwatch-observability EKS add-on via Terraform"
+  type        = bool
+  default     = false
+}
