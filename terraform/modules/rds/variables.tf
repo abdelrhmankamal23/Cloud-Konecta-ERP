@@ -28,7 +28,7 @@ variable "db_allocated_storage" {
 variable "deletion_protection" {
   description = "Enable deletion protection on the primary RDS instance"
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "additional_allowed_cidrs" {
