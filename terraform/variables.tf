@@ -46,6 +46,30 @@ variable "enable_nat_gateway" {
   default     = true
 }
 
+variable "enable_vpc_peering" {
+  description = "Enable VPC peering to a secondary VPC"
+  type        = bool
+  default     = false
+}
+
+variable "peer_vpc_id" {
+  description = "Peer VPC ID (secondary region)"
+  type        = string
+  default     = ""
+}
+
+variable "peer_cidr_block" {
+  description = "Peer VPC CIDR block"
+  type        = string
+  default     = ""
+}
+
+variable "peer_region" {
+  description = "Peer VPC region (required for cross-region peering)"
+  type        = string
+  default     = ""
+}
+
 variable "db_instance_class" {
   description = "RDS instance class"
   type        = string
@@ -72,6 +96,12 @@ variable "bastion_host_key_name" {
 
 variable "team_admin_arns" {
   description = "List of IAM user/role ARNs for EKS cluster admin access"
+  type        = list(string)
+  default     = []
+}
+
+variable "rds_alarm_actions" {
+  description = "List of ARNs to notify when RDS alarms fire (e.g., SNS topic ARNs)"
   type        = list(string)
   default     = []
 }

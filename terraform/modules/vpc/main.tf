@@ -22,6 +22,8 @@ resource "aws_subnet" "public_1" {
   map_public_ip_on_launch = true
   tags = {
     Name = "konecta-erp-public-${var.environment}-1"
+    "kubernetes.io/cluster/konecta-erp-${var.environment}" = "shared"
+    "kubernetes.io/role/elb" = "1"
   }
 }
 
@@ -32,6 +34,8 @@ resource "aws_subnet" "public_2" {
   map_public_ip_on_launch = true
   tags = {
     Name = "konecta-erp-public-${var.environment}-2"
+    "kubernetes.io/cluster/konecta-erp-${var.environment}" = "shared"
+    "kubernetes.io/role/elb" = "1"
   }
 }
 
@@ -41,6 +45,8 @@ resource "aws_subnet" "private_1" {
   availability_zone = var.availability_zones[0]
   tags = {
     Name = "konecta-erp-private-${var.environment}-1"
+    "kubernetes.io/cluster/konecta-erp-${var.environment}" = "shared"
+    "kubernetes.io/role/internal-elb" = "1"
   }
 }
 
@@ -51,8 +57,12 @@ resource "aws_subnet" "private_2" {
   
   tags = {
     Name = "konecta-erp-private-${var.environment}-2"
+    "kubernetes.io/cluster/konecta-erp-${var.environment}" = "shared"
+    "kubernetes.io/role/internal-elb" = "1"
   }
 }
+
+// VPC endpoints removed; NAT is assumed for egress
 
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
@@ -112,6 +122,34 @@ resource "aws_route_table_association" "private_1" {
 resource "aws_route_table_association" "private_2" {
   subnet_id      = aws_subnet.private_2.id
   route_table_id = aws_route_table.private.id
+}
+
+# Optional: VPC Peering (requester side) and routes to peer CIDR
+resource "aws_vpc_peering_connection" "to_peer" {
+  count       = var.enable_vpc_peering && var.peer_vpc_id != "" ? 1 : 0
+  vpc_id      = aws_vpc.main.id
+  peer_vpc_id = var.peer_vpc_id
+  peer_region = var.peer_region != "" ? var.peer_region : null
+  auto_accept = false
+  tags = {
+    Name = "konecta-erp-peering-${var.environment}"
+  }
+}
+
+resource "aws_route" "public_to_peer" {
+  count                  = var.enable_vpc_peering && var.peer_cidr_block != "" ? 1 : 0
+  route_table_id         = aws_route_table.public.id
+  destination_cidr_block = var.peer_cidr_block
+  vpc_peering_connection_id = aws_vpc_peering_connection.to_peer[0].id
+  depends_on = [aws_vpc_peering_connection.to_peer]
+}
+
+resource "aws_route" "private_to_peer" {
+  count                  = var.enable_vpc_peering && var.peer_cidr_block != "" ? 1 : 0
+  route_table_id         = aws_route_table.private.id
+  destination_cidr_block = var.peer_cidr_block
+  vpc_peering_connection_id = aws_vpc_peering_connection.to_peer[0].id
+  depends_on = [aws_vpc_peering_connection.to_peer]
 }
 
 # # Bastion Host Security Group

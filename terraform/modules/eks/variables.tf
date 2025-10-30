@@ -27,3 +27,9 @@ variable "team_admin_arns" {
   description = "List of IAM role/user ARNs for the EKS admin team"
   type        = list(string)
 }
+
+variable "ssl_certificate_arn" {
+  description = "ACM certificate ARN for HTTPS on the ALB listener"
+  type        = string
+  default     = ""
+}

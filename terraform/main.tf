@@ -31,7 +31,11 @@ module "vpc" {
   vpc_cidr              = var.vpc_cidr
   availability_zones    = var.availability_zones
   enable_nat_gateway    = var.enable_nat_gateway
-  bastion_host_key_name = var.bastion_host_key_name
+  enable_vpc_peering    = var.enable_vpc_peering
+  peer_vpc_id           = var.peer_vpc_id
+  peer_cidr_block       = var.peer_cidr_block
+  peer_region           = var.peer_region
+  # bastion_host_key_name = var.bastion_host_key_name
 }
 
 module "rds" {
@@ -42,6 +46,19 @@ module "rds" {
   private_subnet_ids   = module.vpc.private_subnet_ids
   db_instance_class    = var.db_instance_class
   db_allocated_storage = var.db_allocated_storage
+  deletion_protection  = true
+}
+
+module "cloudwatch" {
+  source = "./modules/cloudwatch"
+
+  environment       = local.environment
+  aws_region        = var.aws_region
+  db_identifier     = module.rds.db_identifier
+  rds_alarm_actions = var.rds_alarm_actions
+  project_name      = "konecta-erp"
+  eks_cluster_name  = module.eks.cluster_name
+  eks_alarm_actions = var.rds_alarm_actions
 }
 
 module "secrets" {
@@ -59,6 +76,7 @@ module "eks" {
   public_subnet_ids  = module.vpc.public_subnet_ids
   vpc_cidr           = module.vpc.vpc_cidr_block
   team_admin_arns    = var.team_admin_arns
+  ssl_certificate_arn = var.ssl_certificate_arn
 }
 
 module "ecr" {

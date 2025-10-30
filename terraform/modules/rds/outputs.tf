@@ -18,3 +18,13 @@ output "db_username" {
   description = "Database username"
   value       = aws_db_instance.postgres.username
 }
+
+output "db_arn" {
+  description = "RDS instance ARN"
+  value       = aws_db_instance.postgres.arn
+}
+
+output "db_identifier" {
+  description = "RDS instance identifier"
+  value       = aws_db_instance.postgres.id
+}

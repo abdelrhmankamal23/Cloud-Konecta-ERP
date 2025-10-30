@@ -17,6 +17,10 @@ output "vpc_cidr_block" {
   description = "CIDR block of the VPC"
   value       = aws_vpc.main.cidr_block
 }
+output "vpc_peering_connection_id" {
+  description = "VPC peering connection ID (if created)"
+  value       = try(aws_vpc_peering_connection.to_peer[0].id, null)
+}
 
 # output "bastion_public_ip" {
 #   description = "Public IP address of the bastion host"
