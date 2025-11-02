@@ -28,15 +28,15 @@ output "fargate_pod_execution_role_name" {
   value       = aws_iam_role.fargate.name
 }
 
-output "alb_dns_name" {
-  description = "DNS name of the Application Load Balancer"
-  value       = aws_lb.main.dns_name
-}
+# output "alb_dns_name" {
+#   description = "ALB DNS will be created by AWS Load Balancer Controller via Ingress"
+#   value       = "managed-by-ingress-controller"
+# }
 
-output "alb_target_group_arn" {
-  description = "ARN of the ALB target group"
-  value       = aws_lb_target_group.main.arn
-}
+# output "load_balancer_controller_role_arn" {
+#   description = "ARN of the Load Balancer Controller IAM role"
+#   value       = aws_iam_role.aws_load_balancer_controller.arn
+# }
 
 output "cluster_security_group_id" {
   description = "Security group ID attached to the EKS cluster"

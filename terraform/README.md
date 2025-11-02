@@ -20,7 +20,7 @@ terraform/
     ├── eks/            # Kubernetes cluster
     ├── rds/            # PostgreSQL database
     ├── s3/             # Object storage
-    ├── cloudfront/     # CDN distribution
+
     └── secrets/        # Secrets management
 ```
 
@@ -51,7 +51,7 @@ module "rds" {
 | **VPC** | ✅ Basic setup | ✅ Full setup |
 | **EKS** | ✅ 1 t3.small node | ✅ 2+ t3.medium nodes |
 | **RDS** | ❌ Use in-cluster DB | ✅ Managed PostgreSQL |
-| **CloudFront** | ❌ Direct ALB access | ✅ CDN distribution |
+
 | **Secrets** | ❌ K8s secrets | ✅ AWS Secrets Manager |
 
 ### 4. **Module Architecture**
@@ -194,7 +194,7 @@ terraform apply
 - ✅ **EKS cluster** (1 t3.small node)
 - ✅ **S3 bucket** for frontend hosting
 - ❌ **No RDS** (use in-cluster PostgreSQL or external DB)
-- ❌ **No CloudFront** (direct ALB access)
+
 - ❌ **No Secrets Manager** (use Kubernetes secrets)
 
 ### Production Workspace (`prod`)
@@ -202,7 +202,7 @@ terraform apply
 - ✅ **VPC** with public/private subnets
 - ✅ **EKS cluster** with auto-scaling
 - ✅ **RDS PostgreSQL** database
-- ✅ **CloudFront CDN**
+
 - ✅ **Application Load Balancer**
 - ✅ **Secrets Manager**
 - ✅ **Auto-scaling** capabilities
@@ -232,7 +232,7 @@ module "s3" { ... }
 module "rds" { 
   count = local.is_prod ? 1 : 0  # Deploy if prod, skip if dev
 }
-module "cloudfront" { 
+
   count = local.is_prod ? 1 : 0  # Deploy if prod, skip if dev
 }
 
@@ -305,7 +305,7 @@ local.common_tags = {
 - Multi-AZ for high availability
 - Auto-scaling enabled
 - RDS with backup retention
-- CloudFront for global distribution
+
 
 ## Best Practices
 
@@ -391,7 +391,7 @@ terraform state list
 - Region: us-east-1  
 - EKS: 2+ t3.medium nodes with auto-scaling
 - Database: RDS PostgreSQL with backups
-- CDN: CloudFront distribution
+
 - Secrets: AWS Secrets Manager
 - Cost: ~$200-500/month
 ```

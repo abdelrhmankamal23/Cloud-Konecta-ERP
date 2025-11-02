@@ -107,52 +107,109 @@ resource "aws_iam_role_policy_attachment" "fargate_cloudwatch_agent" {
 ###############################################
 # IRSA Role for CloudWatch Agent (Observability add-on)
 ###############################################
-resource "aws_iam_role" "cloudwatch_agent_irsa" {
-  name = "konecta-erp-cwagent-irsa-${var.environment}"
+# resource "aws_iam_role" "cloudwatch_agent_irsa" {
+#   name = "konecta-erp-cwagent-irsa-${var.environment}"
 
-  assume_role_policy = jsonencode({
-    Version = "2012-10-17",
-    Statement = [
-      {
-        Effect = "Allow",
-        Principal = {
-          Federated = aws_iam_openid_connect_provider.cluster.arn
-        },
-        Action = "sts:AssumeRoleWithWebIdentity",
-        Condition = {
-          StringEquals = {
-            "${replace(aws_iam_openid_connect_provider.cluster.url, "https://", "")}:aud" : "sts.amazonaws.com",
-            "${replace(aws_iam_openid_connect_provider.cluster.url, "https://", "")}:sub" : "system:serviceaccount:aws-observability:cloudwatch-agent"
-          }
-        }
-      }
-    ]
-  })
-}
+#   assume_role_policy = jsonencode({
+#     Version = "2012-10-17",
+#     Statement = [
+#       {
+#         Effect = "Allow",
+#         Principal = {
+#           Federated = aws_iam_openid_connect_provider.cluster.arn
+#         },
+#         Action = "sts:AssumeRoleWithWebIdentity",
+#         Condition = {
+#           StringEquals = {
+#             "${replace(aws_iam_openid_connect_provider.cluster.url, "https://", "")}:aud" : "sts.amazonaws.com",
+#             "${replace(aws_iam_openid_connect_provider.cluster.url, "https://", "")}:sub" : "system:serviceaccount:aws-observability:cloudwatch-agent"
+#           }
+#         }
+#       }
+#     ]
+#   })
+# }
 
-resource "aws_iam_role_policy_attachment" "cloudwatch_agent_irsa_attach" {
-  role       = aws_iam_role.cloudwatch_agent_irsa.name
-  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
-}
+# resource "aws_iam_role_policy_attachment" "cloudwatch_agent_irsa_attach" {
+#   role       = aws_iam_role.cloudwatch_agent_irsa.name
+#   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+# }
 
 ###############################################
 # EKS Add-on: CloudWatch Observability
 ###############################################
-resource "aws_eks_addon" "cloudwatch_observability" {
-  cluster_name                = aws_eks_cluster.main.name
-  addon_name                  = "amazon-cloudwatch-observability"
-  resolve_conflicts_on_create = "OVERWRITE"
-  resolve_conflicts_on_update = "OVERWRITE"
-  service_account_role_arn    = aws_iam_role.cloudwatch_agent_irsa.arn
+# resource "aws_eks_addon" "cloudwatch_observability" {
+#   cluster_name                = aws_eks_cluster.main.name
+#   addon_name                  = "amazon-cloudwatch-observability"
+#   resolve_conflicts_on_create = "OVERWRITE"
+#   resolve_conflicts_on_update = "OVERWRITE"
+#   service_account_role_arn    = aws_iam_role.cloudwatch_agent_irsa.arn
 
-  depends_on = [
-    aws_iam_openid_connect_provider.cluster,
-    aws_iam_role_policy_attachment.cloudwatch_agent_irsa_attach
-  ]
-}
+#   depends_on = [
+#     aws_iam_openid_connect_provider.cluster,
+#     aws_iam_role_policy_attachment.cloudwatch_agent_irsa_attach
+#   ]
+# }
+
+# ###############################################
+# # EKS Node Group (for Load Balancer Controller)
+# ###############################################
+# resource "aws_iam_role" "node_group" {
+#   name = "konecta-erp-nodegroup-role-${var.environment}"
+
+#   assume_role_policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [{
+#       Effect = "Allow"
+#       Principal = {
+#         Service = "ec2.amazonaws.com"
+#       }
+#       Action = "sts:AssumeRole"
+#     }]
+#   })
+# }
+
+# resource "aws_iam_role_policy_attachment" "node_group_AmazonEKSWorkerNodePolicy" {
+#   policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+#   role       = aws_iam_role.node_group.name
+# }
+
+# resource "aws_iam_role_policy_attachment" "node_group_AmazonEKS_CNI_Policy" {
+#   policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+#   role       = aws_iam_role.node_group.name
+# }
+
+# resource "aws_iam_role_policy_attachment" "node_group_AmazonEC2ContainerRegistryReadOnly" {
+#   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
+#   role       = aws_iam_role.node_group.name
+# }
+
+# resource "aws_eks_node_group" "main" {
+#   cluster_name    = aws_eks_cluster.main.name
+#   node_group_name = "konecta-erp-nodegroup-${var.environment}"
+#   node_role_arn   = aws_iam_role.node_group.arn
+#   subnet_ids      = var.private_subnet_ids
+#   instance_types  = ["t3.medium"]
+
+#   scaling_config {
+#     desired_size = 2
+#     max_size     = 3
+#     min_size     = 1
+#   }
+
+#   depends_on = [
+#     aws_iam_role_policy_attachment.node_group_AmazonEKSWorkerNodePolicy,
+#     aws_iam_role_policy_attachment.node_group_AmazonEKS_CNI_Policy,
+#     aws_iam_role_policy_attachment.node_group_AmazonEC2ContainerRegistryReadOnly,
+#   ]
+
+#   tags = {
+#     Name = "konecta-erp-nodegroup-${var.environment}"
+#   }
+# }
 
 ###############################################
-# Fargate Profile
+# Fargate Profile (for application pods)
 ###############################################
 resource "aws_eks_fargate_profile" "main" {
   cluster_name           = aws_eks_cluster.main.name
@@ -161,7 +218,7 @@ resource "aws_eks_fargate_profile" "main" {
   subnet_ids             = var.private_subnet_ids
 
   selector {
-    namespace = "default"
+    namespace = "*"
   }
   tags = {
     Name = "konecta-erp-fargate-${var.environment}"
@@ -194,112 +251,4 @@ resource "aws_eks_access_policy_association" "team_admins_policy" {
   }
 }
 
-###############################################
-# Application Load Balancer (unchanged)
-###############################################
-resource "aws_security_group" "alb" {
-  name   = "konecta-erp-alb-${var.environment}"
-  vpc_id = var.vpc_id
 
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "konecta-erp-alb-sg-${var.environment}"
-  }
-}
-
-resource "aws_lb" "main" {
-  name               = "konecta-erp-alb-${var.environment}"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.alb.id]
-  subnets            = var.public_subnet_ids
-
-  tags = {
-    Name = "konecta-erp-alb-${var.environment}"
-  }
-}
-
-resource "aws_lb_target_group" "main" {
-  name     = "konecta-erp-tg-${var.environment}"
-  port     = 80
-  protocol = "HTTP"
-  vpc_id   = var.vpc_id
-
-  health_check {
-    enabled             = true
-    healthy_threshold   = 2
-    interval            = 30
-    matcher             = "200"
-    path                = "/health"
-    port                = "traffic-port"
-    protocol            = "HTTP"
-    timeout             = 5
-    unhealthy_threshold = 2
-  }
-
-  tags = {
-    Name = "konecta-erp-tg-${var.environment}"
-  }
-}
-
-resource "aws_lb_listener" "main" {
-  load_balancer_arn = aws_lb.main.arn
-  port              = "80"
-  protocol          = "HTTP"
-
-  default_action {
-    type = var.ssl_certificate_arn != "" ? "redirect" : "forward"
-    dynamic "redirect" {
-      for_each = var.ssl_certificate_arn != "" ? [1] : []
-      content {
-        port        = "443"
-        protocol    = "HTTPS"
-        status_code = "HTTP_301"
-      }
-    }
-    dynamic "forward" {
-      for_each = var.ssl_certificate_arn == "" ? [1] : []
-      content {
-        target_group { arn = aws_lb_target_group.main.arn }
-      }
-    }
-  }
-
-  tags = {
-    Name = "konecta-erp-listener-${var.environment}"
-  }
-}
-
-resource "aws_lb_listener" "https" {
-  count             = var.ssl_certificate_arn != "" ? 1 : 0
-  load_balancer_arn = aws_lb.main.arn
-  port              = "443"
-  protocol          = "HTTPS"
-  ssl_policy        = "ELBSecurityPolicy-2016-08"
-  certificate_arn   = var.ssl_certificate_arn
-
-  default_action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.main.arn
-  }
-}

@@ -4,24 +4,25 @@ output "vpc_id" {
   value       = module.vpc.vpc_id
 }
 
-output "alb_dns_name" {
-  description = "DNS name of the Application Load Balancer"
-  value       = module.eks.alb_dns_name
-}
-
 output "ecr_repositories" {
   description = "Map of ECR repository URLs"
   value       = module.ecr.ecr_repositories
 }
 
-output "cloudfront_domain" {
-  description = "CloudFront distribution domain name (HTTPS endpoint)"
-  value       = local.is_prod ? module.cloudfront[0].cloudfront_domain : null
+# Output its ARN for DR
+output "primary_db_arn" {
+  value = module.rds.db_arn
 }
 
-output "db_endpoint" {
+output "rds_endpoint" {
   description = "RDS database endpoint"
-  value       = terraform.workspace == "prod" ? module.rds[0].db_endpoint : null
+  value       = module.rds.db_endpoint
+}
+
+output "rds_password" {
+  description = "RDS database password"
+  value       = module.rds.db_password
+  sensitive   = true
 }
 
 output "eks_cluster_name" {

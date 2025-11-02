@@ -169,10 +169,8 @@ resource "aws_cloudwatch_metric_alarm" "eks_pod_memory_high" {
   }
 }
 
-# Optional: Log group for EKS logs
-resource "aws_cloudwatch_log_group" "eks_logs" {
-  name              = "/aws/eks/${var.eks_cluster_name}/cluster"
-  retention_in_days = 14
+data "aws_cloudwatch_log_group" "eks_logs" {
+  name = "/aws/eks/${var.eks_cluster_name}/cluster"
 }
 resource "aws_cloudwatch_dashboard" "eks_dashboard" {
   dashboard_name = "${var.project_name}-eks-dashboard"
@@ -191,7 +189,11 @@ resource "aws_cloudwatch_dashboard" "eks_dashboard" {
           ],
           title = "EKS Pod CPU Utilization (Avg)",
           period = 300,
-          stat = "Average"
+          stat = "Average",
+          region = var.aws_region,
+          annotations = {
+            horizontal = []
+          }
         }
       },
       {
@@ -206,7 +208,11 @@ resource "aws_cloudwatch_dashboard" "eks_dashboard" {
           ],
           title = "EKS Pod Memory Utilization (Avg)",
           period = 300,
-          stat = "Average"
+          stat = "Average",
+          region = var.aws_region,
+          annotations = {
+            horizontal = []
+          }
         }
       }
     ]

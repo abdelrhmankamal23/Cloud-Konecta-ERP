@@ -31,6 +31,18 @@ variable "deletion_protection" {
   default     = true
 }
 
+variable "storage_encrypted" {
+  description = "Enable storage encryption for RDS"
+  type        = bool
+  default     = true
+}
+
+variable "db_engine" {
+  description = "Database engine"
+  type        = string
+  default     = "postgres"
+}
+
 variable "additional_allowed_cidrs" {
   description = "Additional CIDR blocks allowed to access RDS (e.g., peer VPCs in other regions)"
   type        = list(string)
@@ -59,4 +71,41 @@ variable "pi_retention_period" {
   description = "Performance Insights retention period in days (7 or 731)"
   type        = number
   default     = 7
+}
+
+variable "eks_security_group_ids" {
+  description = "List of EKS security group IDs that need access to RDS"
+  type        = list(string)
+  default     = []
+}
+
+# Replica variables
+variable "create_replica" {
+  description = "Whether to create a cross-region read replica"
+  type        = bool
+  default     = false
+}
+
+variable "source_db_identifier" {
+  description = "Source database ARN for cross-region replica"
+  type        = string
+  default     = ""
+}
+
+variable "replica_instance_class" {
+  description = "Instance class for the read replica"
+  type        = string
+  default     = "db.t3.micro"
+}
+
+variable "replica_backup_retention" {
+  description = "Backup retention period for replica"
+  type        = number
+  default     = 7
+}
+
+variable "replica_deletion_protection" {
+  description = "Enable deletion protection on replica"
+  type        = bool
+  default     = true
 }
