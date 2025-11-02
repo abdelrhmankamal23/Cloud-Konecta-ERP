@@ -14,12 +14,12 @@ output "primary_db_arn" {
   value = module.rds.db_arn
 }
 
-output "rds_endpoint" {
+output "primary_rds_endpoint" {
   description = "RDS database endpoint"
   value       = module.rds.db_endpoint
 }
 
-output "rds_password" {
+output "primary_rds_password" {
   description = "RDS database password"
   value       = module.rds.db_password
   sensitive   = true
