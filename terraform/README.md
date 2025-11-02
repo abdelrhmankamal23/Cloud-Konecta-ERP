@@ -2,533 +2,416 @@
 
 ## Project Overview
 
-This Terraform project deploys a **multi-environment EKS-based infrastructure** for the Konecta ERP application using **workspace-driven architecture**.
+This Terraform project deploys a **multi-region, multi-environment EKS-based infrastructure** for the Konecta ERP application with disaster recovery capabilities and comprehensive monitoring.
 
-## Core Components
+## Architecture Overview
 
-### 1. **Project Structure**
+The infrastructure follows a **multi-region deployment pattern** with:
+- **Primary Region**: us-east-1 (Full production infrastructure)
+- **DR Region**: us-west-1 (Read replica and disaster recovery)
+- **Environment Separation**: Development and production workspaces
+- **Microservices Support**: 8 containerized services with ECR repositories
+
+## Project Structure
+
 ```
 terraform/
-├── main.tf              # Core infrastructure logic
-├── variables.tf         # Input variables
-├── outputs.tf          # Output values
-├── backend.tf          # State management
-├── dev.tfvars          # Development configuration
-├── prod.tfvars         # Production configuration
-└── modules/            # Reusable infrastructure modules
-    ├── vpc/            # Virtual Private Cloud
-    ├── eks/            # Kubernetes cluster
-    ├── rds/            # PostgreSQL database
-    ├── s3/             # Object storage
-
-    └── secrets/        # Secrets management
+├── environments/                    # Environment-specific configurations
+│   └── dev/
+│       ├── us-east-1/              # Primary region (full stack)
+│       │   ├── main.tf             # Main infrastructure orchestration
+│       │   ├── variables.tf        # Environment variables
+│       │   ├── outputs.tf          # Infrastructure outputs
+│       │   ├── backend.tf          # S3 state backend configuration
+│       │   └── terraform.tfvars    # Environment-specific values
+│       └── us-west-1/              # DR region (read replica only)
+│           ├── main.tf             # DR infrastructure
+│           ├── variables.tf        # DR variables
+│           ├── backend.tf          # DR state backend
+│           └── terraform.tfvars    # DR-specific values
+├── modules/                        # Reusable infrastructure modules
+│   ├── vpc/                        # Virtual Private Cloud module
+│   ├── eks/                        # Kubernetes cluster module
+│   ├── rds/                        # PostgreSQL database module
+│   ├── ecr/                        # Container registry module
+│   ├── secrets/                    # Secrets management module
+│   └── cloudWatch/                 # Monitoring and alerting module
+├── shared/                         # Shared variables and configurations
+│   └── variables.tf                # Global variable definitions
+└── README.md                       # This documentation
 ```
 
-### 2. **Workspace-Driven Architecture**
+## Infrastructure Components
 
-The project uses **Terraform workspaces** to manage multiple environments:
+### 1. VPC Module (`modules/vpc/`)
 
-```hcl
-# Workspace logic in main.tf
-locals {
-  environment = terraform.workspace           # "dev" or "prod"
-  is_prod     = terraform.workspace == "prod" # Boolean flag
-  name_prefix = "konecta-${local.environment}" # Resource naming
-}
+**Purpose**: Creates the foundational network infrastructure with public/private subnets, NAT gateways, and optional VPC peering.
 
-# Conditional resource deployment
-module "rds" {
-  count = local.is_prod ? 1 : 0  # Only deploy in prod
-  # ... configuration
-}
-```
+**Resources Created**:
+- `aws_vpc.main` - Main VPC with DNS support
+- `aws_internet_gateway.main` - Internet gateway for public access
+- `aws_subnet.public_1/2` - Public subnets (10.0.1.0/24, 10.0.2.0/24)
+- `aws_subnet.private_1/2` - Private subnets (10.0.11.0/24, 10.0.12.0/24)
+- `aws_nat_gateway.main` - NAT gateway for private subnet internet access
+- `aws_eip.nat` - Elastic IP for NAT gateway
+- `aws_route_table.public/private` - Route tables for traffic routing
+- `aws_vpc_peering_connection.to_peer` - Optional cross-region VPC peering
 
-### 3. **Environment Separation Strategy**
+**Key Features**:
+- Multi-AZ deployment across 2 availability zones
+- Kubernetes-ready subnet tagging for ELB integration
+- Conditional NAT gateway deployment
+- Cross-region VPC peering support for DR scenarios
 
-| Component | Dev Workspace | Prod Workspace |
-|-----------|---------------|----------------|
-| **Region** | eu-west-1 | us-east-1 |
-| **VPC** | ✅ Basic setup | ✅ Full setup |
-| **EKS** | ✅ 1 t3.small node | ✅ 2+ t3.medium nodes |
-| **RDS** | ❌ Use in-cluster DB | ✅ Managed PostgreSQL |
+### 2. EKS Module (`modules/eks/`)
 
-| **Secrets** | ❌ K8s secrets | ✅ AWS Secrets Manager |
+**Purpose**: Deploys a production-ready Kubernetes cluster using AWS Fargate for serverless container execution.
 
-### 4. **Module Architecture**
+**Resources Created**:
+- `aws_eks_cluster.main` - EKS cluster (v1.32) with comprehensive logging
+- `aws_eks_fargate_profile.main` - Fargate profile for serverless pods
+- `aws_iam_role.cluster` - EKS cluster service role
+- `aws_iam_role.fargate` - Fargate pod execution role
+- `aws_iam_openid_connect_provider.cluster` - OIDC provider for IRSA
+- `aws_eks_access_entry.team_admins` - Team admin access entries
+- `aws_eks_access_policy_association.team_admins_policy` - Admin policy associations
 
-Each module is **self-contained** and **reusable**:
+**Key Features**:
+- **Serverless Architecture**: 100% Fargate-based (no EC2 nodes)
+- **Enhanced Security**: Private/public endpoint access with RBAC
+- **Comprehensive Logging**: All cluster log types enabled
+- **Team Access Management**: Configurable admin access via ARNs
+- **IRSA Ready**: OpenID Connect provider for service account roles
 
-```hcl
-# Example: VPC module
-module "vpc" {
-  source = "./modules/vpc"
-  
-  environment        = local.environment
-  vpc_cidr          = var.vpc_cidr
-  availability_zones = var.availability_zones
-  enable_nat_gateway = var.enable_nat_gateway
-}
-```
+### 3. RDS Module (`modules/rds/`)
 
-### 5. **State Management**
+**Purpose**: Manages PostgreSQL databases with cross-region read replicas for disaster recovery.
 
-- **Backend**: S3 with workspace-specific state files
-- **State Path**: `<workspace_key_prefix>/<workspace_name>/<key>`
-- **Example**: `konecta-erp/dev/terraform.tfstate` or `konecta-erp/prod/terraform.tfstate`
-- **Isolation**: Complete separation between environments
+**Resources Created**:
+- `aws_db_instance.postgres` - Primary PostgreSQL instance (v15.8)
+- `aws_db_instance.replica` - Cross-region read replica (DR)
+- `aws_db_subnet_group.main` - Database subnet group
+- `aws_security_group.rds` - Database security group
+- `aws_kms_key.dr` - KMS key for replica encryption
+- `aws_iam_role.rds_enhanced_monitoring` - Enhanced monitoring role
+- `random_password.db_password` - Secure password generation
 
-#### Backend Configuration
+**Key Features**:
+- **Multi-Region DR**: Automated cross-region read replica
+- **Enhanced Security**: Encryption at rest, VPC isolation, IAM authentication
+- **Performance Monitoring**: Enhanced monitoring and Performance Insights
+- **Automated Backups**: 7-day retention with point-in-time recovery
+- **EKS Integration**: Security group rules for cluster access
 
-The backend configuration uses partial configuration to support dynamic workspace keys:
+### 4. ECR Module (`modules/ecr/`)
 
-```hcl
-# backend.tf
-terraform {
-  backend "s3" {
-    bucket = "konecta-terraform-state"
-    region = "eu-west-1"
-    encrypt = true
-    use_lockfile = true
-    # key is specified during initialization
-  }
-}
-```
+**Purpose**: Container registry for all microservices with lifecycle management and security scanning.
 
-**Key Structure Template**: `<workspace_key_prefix>/<workspace_name>/<key>`
+**Resources Created**:
+- `aws_ecr_repository.services` - 8 repositories for microservices:
+  - `auth-service` - Authentication and authorization
+  - `hr-service` - Human resources management
+  - `finance-service` - Financial operations
+  - `operation-service` - Operational workflows
+  - `gateway-service` - API gateway and routing
+  - `discovery-server` - Service discovery (Eureka)
+  - `config-server` - Configuration management
+  - `reporting-service` - Business intelligence and reporting
+- `aws_ecr_lifecycle_policy.services` - Lifecycle policies (keep last 10 images)
+- `aws_iam_role_policy.ecr_access` - Fargate ECR access permissions
 
-```
-<workspace_key_prefix>/<workspace_name>/<key>
-```
+**Key Features**:
+- **Vulnerability Scanning**: Automatic image scanning on push
+- **Lifecycle Management**: Automated cleanup of old images
+- **Encryption**: AES256 encryption for stored images
+- **Fargate Integration**: Proper IAM permissions for pod image pulls
 
-- `workspace_key_prefix`: Project identifier (e.g., "konecta-erp")
-- `workspace_name`: Environment name ("dev", "prod", "staging")
-- `key`: State file name ("terraform.tfstate")
+### 5. Secrets Module (`modules/secrets/`)
 
-**Examples**:
-- `konecta-erp/dev/terraform.tfstate`
-- `konecta-erp/prod/terraform.tfstate`
-- `my-project/staging/terraform.tfstate`
+**Purpose**: Secure management of application secrets using AWS Secrets Manager with KMS encryption.
 
-**Initialization per workspace**:
+**Resources Created**:
+- `aws_secretsmanager_secret.db_password` - Database credentials
+- `aws_secretsmanager_secret.jwt_secret` - JWT signing secret
+- `aws_secretsmanager_secret_version.*` - Secret values
+- `aws_kms_key.secrets_key` - KMS key for secrets encryption
+- `aws_kms_alias.secrets_key_alias` - KMS key alias
+
+**Key Features**:
+- **KMS Encryption**: All secrets encrypted with customer-managed keys
+- **Zero Recovery Window**: Immediate secret deletion capability
+- **JSON Structure**: Structured secret storage for complex credentials
+- **Application Integration**: Ready for Kubernetes secret store CSI driver
+
+### 6. CloudWatch Module (`modules/cloudWatch/`)
+
+**Purpose**: Comprehensive monitoring, alerting, and observability for RDS and EKS resources.
+
+**Resources Created**:
+- `aws_cloudwatch_dashboard.rds` - RDS performance dashboard
+- `aws_cloudwatch_dashboard.eks_dashboard` - EKS cluster dashboard
+- `aws_cloudwatch_metric_alarm.rds_cpu_high` - RDS CPU utilization alarm
+- `aws_cloudwatch_metric_alarm.rds_free_storage_low` - RDS storage alarm
+- `aws_cloudwatch_metric_alarm.rds_db_connections_high` - RDS connection alarm
+- `aws_cloudwatch_metric_alarm.eks_pod_cpu_high` - EKS pod CPU alarm
+- `aws_cloudwatch_metric_alarm.eks_pod_memory_high` - EKS pod memory alarm
+
+**Key Features**:
+- **RDS Monitoring**: CPU, storage, connections, and latency metrics
+- **EKS Monitoring**: Container Insights integration for pod metrics
+- **Proactive Alerting**: Configurable SNS notifications
+- **Visual Dashboards**: Real-time performance visualization
+
+## Multi-Region Architecture
+
+### Primary Region (us-east-1)
+**Full Production Stack**:
+- ✅ VPC with public/private subnets
+- ✅ EKS cluster with Fargate profiles
+- ✅ Primary PostgreSQL database
+- ✅ ECR repositories for all services
+- ✅ Secrets Manager with KMS encryption
+- ✅ CloudWatch monitoring and alerting
+
+### DR Region (us-west-1)
+**Disaster Recovery Setup**:
+- ✅ VPC infrastructure (isolated)
+- ✅ Cross-region RDS read replica
+- ✅ KMS key for replica encryption
+- ❌ No EKS cluster (cost optimization)
+- ❌ No ECR repositories (shared from primary)
+
+### Cross-Region Communication
+- **RDS Replication**: Automated cross-region read replica
+- **State Management**: Separate S3 backends per region
+- **VPC Peering**: Optional cross-region VPC connectivity
+- **Failover Strategy**: Manual promotion of read replica to primary
+
+## Deployment Environments
+
+### Development Environment
+**Cost-Optimized Configuration**:
+- **Region**: us-east-1
+- **RDS**: Primary database only (no replica)
+- **EKS**: Fargate-based with minimal resources
+- **Monitoring**: Basic CloudWatch metrics
+- **Estimated Cost**: $150-250/month
+
+### Production Environment
+**High-Availability Configuration**:
+- **Primary Region**: us-east-1 (full stack)
+- **DR Region**: us-west-1 (read replica)
+- **RDS**: Primary + cross-region replica
+- **EKS**: Production-grade Fargate configuration
+- **Monitoring**: Full CloudWatch suite with alerting
+- **Estimated Cost**: $400-600/month
+
+## Security Architecture
+
+### Network Security
+- **VPC Isolation**: Private subnets for all compute and database resources
+- **Security Groups**: Least-privilege access rules
+- **NAT Gateway**: Controlled internet access for private resources
+- **EKS Security**: Cluster endpoint access controls
+
+### Data Security
+- **Encryption at Rest**: KMS encryption for RDS, Secrets Manager, and ECR
+- **Encryption in Transit**: TLS for all service communications
+- **IAM Integration**: RDS IAM authentication enabled
+- **Secret Management**: AWS Secrets Manager with rotation capability
+
+### Access Control
+- **EKS RBAC**: Kubernetes role-based access control
+- **IAM Roles**: Service-specific IAM roles with minimal permissions
+- **Team Access**: Configurable admin access via IAM ARNs
+- **IRSA**: IAM Roles for Service Accounts for pod-level permissions
+
+## Microservices Architecture
+
+The infrastructure supports 8 microservices with dedicated ECR repositories:
+
+### Core Services
+1. **auth-service** - JWT-based authentication and authorization
+2. **gateway-service** - API gateway with routing and load balancing
+3. **discovery-server** - Eureka-based service discovery
+4. **config-server** - Centralized configuration management
+
+### Business Services
+5. **hr-service** - Human resources and employee management
+6. **finance-service** - Financial transactions and accounting
+7. **operation-service** - Operational workflows and processes
+8. **reporting-service** - Business intelligence and analytics
+
+### Service Communication
+- **Service Discovery**: Eureka server for dynamic service registration
+- **Configuration**: Centralized config server for environment-specific settings
+- **API Gateway**: Single entry point with request routing and authentication
+- **Database**: Shared PostgreSQL with service-specific schemas
+
+## Quick Start Guide
+
+### Prerequisites
+- AWS CLI configured with appropriate permissions
+- Terraform >= 1.0 installed
+- kubectl installed for EKS management
+
+### 1. Initialize Primary Region (us-east-1)
 ```bash
-# Development
-terraform init -backend-config="key=konecta-erp/dev/terraform.tfstate"
+cd terraform/environments/dev/us-east-1/
 
-# Production
-terraform init -backend-config="key=konecta-erp/prod/terraform.tfstate"
+# Initialize Terraform
+terraform init
 
-# Staging (if needed)
-terraform init -backend-config="key=konecta-erp/staging/terraform.tfstate"
-```
+# Plan deployment
+terraform plan
 
-### 6. **Configuration Management**
-
-**Variables Priority** (highest to lowest):
-1. Command line: `-var-file="dev.tfvars"`
-2. Environment variables: `TF_VAR_*`
-3. Default values in `variables.tf`
-
-## Quick Start with Workspaces
-
-### 1. Initialize Terraform with Workspace-Specific Backend
-```bash
-cd terraform/
-
-# Initialize for development
-terraform init -backend-config="key=konecta-erp/dev/terraform.tfstate"
-terraform workspace new dev
-
-# Re-initialize for production (when switching)
-terraform init -reconfigure -backend-config="key=konecta-erp/prod/terraform.tfstate"
-terraform workspace new prod
-```
-
-### 2. Using the Automated Script
-```bash
-# Use the provided script for easier management
-./init.bat dev   # Initializes and switches to dev
-./init.bat prod  # Initializes and switches to prod
-```
-
-### 3. Deploy to Development (Minimal EKS)
-```bash
-# Switch to dev workspace
-terraform workspace select dev
-
-# Deploy with dev-specific variables
-terraform plan -var-file="dev.tfvars"
-terraform apply -var-file="dev.tfvars"
-```
-
-### 4. Deploy to Production (Full Setup)
-```bash
-# Switch to prod workspace
-terraform workspace select prod
-
-# Deploy with prod-specific variables
-terraform plan -var-file="prod.tfvars"
-terraform apply -var-file="prod.tfvars"
-```
-
-## Alternative: Using Default terraform.tfvars
-
-You can also rename the appropriate file to `terraform.tfvars` and run without `-var-file`:
-
-```bash
-# For dev
-cp dev.tfvars terraform.tfvars
-terraform workspace select dev
+# Deploy infrastructure
 terraform apply
+```
 
-# For prod
-cp prod.tfvars terraform.tfvars
-terraform workspace select prod
+### 2. Configure kubectl for EKS
+```bash
+# Get cluster credentials
+aws eks update-kubeconfig --region us-east-1 --name konecta-erp-dev
+
+# Verify cluster access
+kubectl get nodes
+```
+
+### 3. Deploy DR Region (us-west-1)
+```bash
+cd terraform/environments/dev/us-west-1/
+
+# Initialize Terraform
+terraform init
+
+# Deploy DR infrastructure
 terraform apply
 ```
 
-## What Each Workspace Deploys
+### 4. Verify Deployment
+```bash
+# Check RDS endpoints
+terraform output rds_endpoint
 
-### Development Workspace (`dev`)
-**Minimal EKS Setup - Cost Optimized**
-- ✅ **VPC** with public/private subnets
-- ✅ **EKS cluster** (1 t3.small node)
-- ✅ **S3 bucket** for frontend hosting
-- ❌ **No RDS** (use in-cluster PostgreSQL or external DB)
+# Check ECR repositories
+terraform output ecr_repositories
 
-- ❌ **No Secrets Manager** (use Kubernetes secrets)
-
-### Production Workspace (`prod`)
-**Full Production Setup**
-- ✅ **VPC** with public/private subnets
-- ✅ **EKS cluster** with auto-scaling
-- ✅ **RDS PostgreSQL** database
-
-- ✅ **Application Load Balancer**
-- ✅ **Secrets Manager**
-- ✅ **Auto-scaling** capabilities
-
-## How Workspace Logic Works
-
-The infrastructure is controlled by the current workspace using **conditional expressions**:
-
-### Conditional Expression Syntax
-```hcl
-condition ? value_if_true : value_if_false
+# Check EKS cluster
+terraform output eks_cluster_endpoint
 ```
 
-### Implementation
-```hcl
-locals {
-  environment = terraform.workspace    # Gets current workspace name
-  is_prod     = terraform.workspace == "prod"  # Boolean condition
-}
+## Monitoring and Observability
 
-# Always deployed
-module "vpc" { ... }
-module "eks" { ... }
-module "s3" { ... }
+### CloudWatch Dashboards
+- **RDS Dashboard**: Database performance metrics
+- **EKS Dashboard**: Container and pod metrics
 
-# Conditional deployment using ternary operator
-module "rds" { 
-  count = local.is_prod ? 1 : 0  # Deploy if prod, skip if dev
-}
+### Alerting Thresholds
+- **RDS CPU**: > 80% for 5 minutes
+- **RDS Storage**: < 2GB free space
+- **RDS Connections**: > 100 concurrent connections
+- **EKS Pod CPU**: > 80% average utilization
+- **EKS Pod Memory**: > 80% average utilization
 
-  count = local.is_prod ? 1 : 0  # Deploy if prod, skip if dev
-}
+### Log Management
+- **EKS Logs**: All cluster log types enabled
+- **RDS Logs**: PostgreSQL and upgrade logs exported
+- **Application Logs**: Container logs via CloudWatch Container Insights
 
-# Conditional values
-instance_type = terraform.workspace == "prod" ? "t3.medium" : "t3.small"
-node_count    = terraform.workspace == "prod" ? 3 : 1
+## Disaster Recovery Procedures
+
+### Failover Process
+1. **Assess Primary Region**: Determine scope of outage
+2. **Promote Read Replica**: Convert us-west-1 replica to primary
+3. **Update DNS**: Point application to DR region
+4. **Deploy EKS**: Spin up EKS cluster in DR region if needed
+5. **Restore Services**: Deploy applications to DR infrastructure
+
+### Recovery Commands
+```bash
+# Promote read replica to primary
+aws rds promote-read-replica --db-instance-identifier konecta-erp-dev-replica --region us-west-1
+
+# Deploy EKS in DR region (if needed)
+cd terraform/environments/dev/us-west-1/
+terraform apply -target=module.eks
+
+# Update application configuration
+kubectl apply -f k8s-manifests/ --context=dr-cluster
 ```
 
-## Customization
+## Cost Optimization
 
-Edit `variables.tf` and `terraform.tfvars` to customize:
-- AWS region
-- Instance types
-- Database settings
-- Key pair names
-- Node counts
+### Development Environment
+- **Single Region**: us-east-1 only
+- **No Read Replica**: Reduces RDS costs by 50%
+- **Fargate Only**: No EC2 node costs
+- **Basic Monitoring**: Essential metrics only
 
-## Workspace Management
+### Production Environment
+- **Reserved Instances**: Consider RDS reserved instances for 40% savings
+- **Fargate Spot**: Use Spot pricing for non-critical workloads
+- **Storage Optimization**: Regular cleanup of ECR images and logs
+- **Auto-Scaling**: Right-size resources based on demand
+
+## Maintenance and Updates
+
+### Regular Tasks
+- **Terraform Updates**: Keep provider versions current
+- **EKS Updates**: Regular cluster and node group updates
+- **RDS Maintenance**: Apply patches during maintenance windows
+- **Security Scans**: Regular ECR image vulnerability scans
+
+### Backup Strategy
+- **RDS Backups**: 7-day automated backups with point-in-time recovery
+- **Terraform State**: S3 versioning and cross-region replication
+- **Configuration**: Git-based version control for all IaC
+
+---
+
+### Common Commands
+
+#### EKS Access
 
 ```bash
-# List workspaces
-terraform workspace list
+# Update kubeconfig
+aws eks update-kubeconfig --region us-east-1 --name konecta-erp-dev
 
-# Show current workspace
-terraform workspace show
-
-# Switch workspace
-terraform workspace select <workspace-name>
+# Check IAM permissions
+aws sts get-caller-identity
 ```
-
-## Technical Details
-
-### Resource Naming Convention
-```hcl
-# All resources follow this pattern:
-"konecta-${environment}-${resource-type}"
-
-# Examples:
-# konecta-dev-vpc
-# konecta-prod-eks-cluster
-# konecta-dev-frontend-bucket
-```
-
-### Tagging Strategy
-```hcl
-local.common_tags = {
-  Environment = local.environment    # "dev" or "prod"
-  Project     = "Konecta-ERP"
-  ManagedBy   = "Terraform"
-  Workspace   = terraform.workspace
-}
-```
-
-### Security Considerations
-
-- **Network**: Private subnets for EKS nodes and RDS
-- **Access**: Bastion host for secure SSH access
-- **Secrets**: AWS Secrets Manager for production
-- **IAM**: Least privilege principle for EKS service accounts
-
-### Cost Optimization
-
-**Development Environment:**
-- Single AZ deployment where possible
-- t3.small instances
-- No NAT Gateway redundancy
-- No RDS (use in-cluster PostgreSQL)
-
-**Production Environment:**
-- Multi-AZ for high availability
-- Auto-scaling enabled
-- RDS with backup retention
-
-
-## Best Practices
-
-### 1. **Always use workspaces**
-```bash
-# Never deploy to default workspace
-terraform workspace select dev  # or prod
-```
-
-### 2. **Use environment-specific .tfvars**
-```bash
-# Always specify the correct tfvars file
-terraform apply -var-file="dev.tfvars"
-```
-
-### 3. **Verify before applying**
-```bash
-# Always run plan first
-terraform plan -var-file="dev.tfvars"
-terraform apply -var-file="dev.tfvars"
-```
-
-### 4. **State file backup**
-```bash
-# State is automatically backed up in S3
-# Each workspace has separate state file
-```
-
-## Troubleshooting
-
-### Common Issues
-
-1. **Wrong workspace**: Check with `terraform workspace show`
-2. **Missing .tfvars**: Ensure you're using the correct file
-3. **AWS credentials**: Verify AWS CLI configuration
-4. **Resource limits**: Check AWS service quotas
-
-### Useful Commands
 
 ```bash
-# Check current workspace
-terraform workspace show
+# Check Terraform state
+terraform state list
+terraform show
 
 # Validate configuration
 terraform validate
-
-# Format code
 terraform fmt
 
-# Show current state
-terraform show
+# Check resource drift
+terraform plan -detailed-exitcode
 
-# List resources
-terraform state list
 ```
 
-## Environment Separation & Workflow
+## Best Practices
 
-### Development vs Production Separation
+### Infrastructure as Code
+- ✅ **Version Control**: All Terraform code in Git
+- ✅ **Module Reusability**: Shared modules across environments
+- ✅ **State Management**: Remote state with locking on S3 itself Not DynamoDB table 
 
-#### **Complete Isolation Strategy**
 
-| Separation Layer | Development | Production | Purpose |
-|------------------|-------------|------------|---------|
-| **AWS Region** | eu-west-1 | us-east-1 | Geographic isolation |
-| **Workspace** | `dev` | `prod` | Terraform state separation |
-| **State File** | `konecta-erp/dev/terraform.tfstate` | `konecta-erp/prod/terraform.tfstate` | Complete state isolation |
-| **Resource Names** | `konecta-dev-*` | `konecta-prod-*` | Clear resource identification |
-| **Configuration** | `dev.tfvars` | `prod.tfvars` | Environment-specific settings |
+### Security
+- ✅ **Least Privilege**: Minimal IAM permissions
+- ✅ **Encryption**: KMS encryption for all sensitive data
+- ✅ **Network Isolation**: Private subnets for all resources
+- ✅ **Secret Management**: AWS Secrets Manager integration
 
-#### **Infrastructure Differences**
-
-```hcl
-# Development (Cost-Optimized)
-- Region: eu-west-1
-- EKS: 1 t3.small node
-- Database: In-cluster PostgreSQL
-- CDN: None (direct ALB)
-- Secrets: Kubernetes secrets
-- Cost: ~$50-100/month
-
-# Production (High-Availability)
-- Region: us-east-1  
-- EKS: 2+ t3.medium nodes with auto-scaling
-- Database: RDS PostgreSQL with backups
-
-- Secrets: AWS Secrets Manager
-- Cost: ~$200-500/month
-```
-
-### Development Workflow
-
-#### **1. Feature Development Cycle**
-
-```bash
-# Step 1: Develop infrastructure changes
-git checkout -b feature/new-infrastructure
-
-# Step 2: Test in development
-terraform workspace select dev
-terraform plan -var-file="dev.tfvars"
-terraform apply -var-file="dev.tfvars"
-
-# Step 3: Validate application deployment
-kubectl get nodes
-kubectl apply -f k8s-manifests/
-
-# Step 4: Test application functionality
-curl http://<alb-dns-name>/health
-```
-
-#### **2. Production Deployment Process**
-
-```bash
-# Step 1: Code review and merge
-git push origin feature/new-infrastructure
-# Create PR → Review → Merge to main
-
-# Step 2: Deploy to production
-git checkout main
-git pull origin main
-
-# Step 3: Production deployment
-terraform workspace select prod
-terraform plan -var-file="prod.tfvars"  # Review changes
-terraform apply -var-file="prod.tfvars"
-
-# Step 4: Verify production deployment
-kubectl get nodes --context=prod
-kubectl apply -f k8s-manifests/ --context=prod
-```
-
-#### **3. Rollback Strategy**
-
-```bash
-# Emergency rollback
-terraform workspace select prod
-terraform plan -destroy -var-file="prod.tfvars"
-terraform destroy -target=module.new_feature -var-file="prod.tfvars"
-
-# Or revert to previous state
-git revert <commit-hash>
-terraform apply -var-file="prod.tfvars"
-```
-
-### Safety Mechanisms
-
-#### **1. Workspace Validation**
-```bash
-# Always verify workspace before deployment
-echo "Current workspace: $(terraform workspace show)"
-if [ "$(terraform workspace show)" != "prod" ]; then
-  echo "⚠️  Not in production workspace!"
-fi
-```
-
-#### **2. State File Protection**
-```hcl
-# S3 backend with versioning
-terraform {
-  backend "s3" {
-    bucket         = "konecta-terraform-state"
-    key            = "${terraform.workspace}/terraform.tfstate"
-    region         = "us-east-1"
-    encrypt        = true
-    versioning     = true
-    dynamodb_table = "terraform-locks"  # Prevents concurrent runs
-  }
-}
-```
-
-#### **3. Resource Tagging for Identification**
-```hcl
-# All resources tagged with environment
-local.common_tags = {
-  Environment = local.environment     # "dev" or "prod"
-  Workspace   = terraform.workspace   # Workspace name
-  Project     = "Konecta-ERP"
-  ManagedBy   = "Terraform"
-}
-```
-
-### Best Practices for Team Workflow
-
-#### **1. Development First Rule**
-- ✅ **Always test in dev first**
-- ✅ **Never deploy directly to prod**
-- ✅ **Use feature branches for infrastructure changes**
-
-#### **2. Production Deployment Checklist**
-- [ ] Changes tested in dev environment
-- [ ] Code reviewed and approved
-- [ ] Backup plan documented
-- [ ] Monitoring alerts configured
-- [ ] Team notified of deployment window
-
-#### **3. Emergency Procedures**
-```bash
-# Production incident response
-1. Assess impact: kubectl get pods --context=prod
-2. Quick fix: kubectl rollout restart deployment/app --context=prod
-3. Infrastructure fix: terraform apply -var-file="prod.tfvars"
-4. Full rollback: terraform destroy -target=module.problematic_resource
-```
-
-### Monitoring & Observability
-
-#### **Environment Health Checks**
-```bash
-# Development environment
-terraform workspace select dev
-terraform output alb_dns_name
-curl http://$(terraform output -raw alb_dns_name)/health
-
-# Production environment  
-terraform workspace select prod
-terraform output alb_dns_name
-curl http://$(terraform output -raw alb_dns_name)/health
-```
-
-### Terraform variable precedence (lowest → highest):
-
-1- Default inside variable block  
-2- Environment variable (TF_VAR_name)  
-3- terraform.tfvars / .auto.tfvars  
-4- CLI -var flag  
+### Operations
+- ✅ **Monitoring**: Comprehensive CloudWatch integration
+- ✅ **Alerting**: Proactive notification system
+- ✅ **Backup Strategy**: Automated backups and disaster recovery
+- ✅ **Cost Optimization**: Resource right-sizing and cleanup
