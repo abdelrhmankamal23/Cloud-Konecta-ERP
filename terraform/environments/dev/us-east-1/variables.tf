@@ -22,7 +22,8 @@ variable "vpc_cidr" {
 
 variable "availability_zones" {
   description = "Map of availability zones"
-  type        = {
+  type        = map(string)
+  default     = {
     "zone_1" = "us-east-1a"
     "zone_2" = "us-east-1b"
   }
