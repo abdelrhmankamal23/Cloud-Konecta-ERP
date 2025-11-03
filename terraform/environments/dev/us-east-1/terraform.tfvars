@@ -1,7 +1,10 @@
 aws_region           = "us-east-1"
 environment          = "dev"
 vpc_cidr             = "10.0.0.0/16"
-availability_zones   = ["us-east-1a", "us-east-1b"]
+availability_zones   = {
+    "zone_1" = "us-east-1a"
+    "zone_2" = "us-east-1b"
+  }
 enable_nat_gateway   = true
 db_instance_class    = "db.t3.micro"
 db_allocated_storage = 20
