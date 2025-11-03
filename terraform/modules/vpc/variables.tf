@@ -10,14 +10,18 @@ variable "vpc_cidr" {
 }
 
 variable "availability_zones" {
-  description = "List of availability zones"
-  type        = list(string)
+  description = "Map of availability zones"
+  type        = map(string)
+  default = {
+    "zone_1" = "us-east-1a"
+    "zone_2" = "us-east-1b"
+  }
 }
 
 variable "enable_nat_gateway" {
   description = "Enable NAT Gateway for private subnets"
   type        = bool
-  default     = true
+  default     = false
 }
 
 // VPC endpoints disabled; NAT is assumed and provides egress

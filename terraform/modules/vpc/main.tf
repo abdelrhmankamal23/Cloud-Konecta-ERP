@@ -18,7 +18,7 @@ resource "aws_internet_gateway" "main" {
 resource "aws_subnet" "public_1" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.0.1.0/24"
-  availability_zone       = var.availability_zones[0]
+  availability_zone       = var.availability_zones.zone_1
   map_public_ip_on_launch = true
   tags = {
     Name = "konecta-erp-public-${var.environment}-1"
@@ -30,7 +30,7 @@ resource "aws_subnet" "public_1" {
 resource "aws_subnet" "public_2" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = "10.0.2.0/24"
-  availability_zone       = var.availability_zones[1]
+  availability_zone       = var.availability_zones.zone_2
   map_public_ip_on_launch = true
   tags = {
     Name = "konecta-erp-public-${var.environment}-2"
@@ -42,7 +42,7 @@ resource "aws_subnet" "public_2" {
 resource "aws_subnet" "private_1" {
   vpc_id            = aws_vpc.main.id
   cidr_block        = "10.0.11.0/24"
-  availability_zone = var.availability_zones[0]
+  availability_zone = var.availability_zones.zone_1
   tags = {
     Name = "konecta-erp-private-${var.environment}-1"
     "kubernetes.io/cluster/konecta-erp-${var.environment}" = "shared"
@@ -53,7 +53,7 @@ resource "aws_subnet" "private_1" {
 resource "aws_subnet" "private_2" {
   vpc_id            = aws_vpc.main.id
   cidr_block        = "10.0.12.0/24"
-  availability_zone = var.availability_zones[1]
+  availability_zone = var.availability_zones.zone_2
   
   tags = {
     Name = "konecta-erp-private-${var.environment}-2"
