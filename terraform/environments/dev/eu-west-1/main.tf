@@ -43,6 +43,24 @@ data "terraform_remote_state" "primary" {
   }
 }
 
+module "eks" {
+  source = "../../../modules/eks"
+  
+  environment        = "${local.environment}-dr"
+  vpc_id             = module.vpc.vpc_id
+  private_subnet_ids = module.vpc.private_subnet_ids
+  public_subnet_ids  = module.vpc.public_subnet_ids
+  vpc_cidr           = module.vpc.vpc_cidr_block
+  team_admin_arns    = var.team_admin_arns
+}
+
+# ECR for DR region
+module "ecr" {
+  source = "../../../modules/ecr"
+  environment = "${local.environment}-dr"
+  fargate_pod_execution_role_name = module.eks.fargate_pod_execution_role_name
+}
+
 # RDS Read Replica for DR
 module "rds" {
   source = "../../../modules/rds"
@@ -60,8 +78,14 @@ module "rds" {
   # Replica configuration
   create_replica          = true
   source_db_identifier    = data.terraform_remote_state.primary.outputs.primary_db_arn
-  replica_instance_class  = var.replica_instance_class
   replica_deletion_protection = var.replica_deletion_protection
   
-  eks_security_group_ids = []
+  eks_security_group_ids = [module.eks.cluster_security_group_id]
+}
+
+# Secrets for DR region
+module "secrets" {
+  source      = "../../../modules/secrets"
+  environment = "${local.environment}-dr"
+  db_password = module.rds.db_password
 }

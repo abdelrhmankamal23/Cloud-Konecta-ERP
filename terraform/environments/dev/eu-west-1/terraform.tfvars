@@ -2,7 +2,10 @@ aws_region           = "eu-west-1"
 primary_region       = "us-east-1"
 environment          = "dev"
 vpc_cidr             = "10.1.0.0/16"  # Different CIDR for DR region
-availability_zones   = ["eu-west-1a", "eu-west-1b"]
+availability_zones   = {
+    "zone-1" = "eu-west-1a"
+    "zone-2" = "eu-west-1b"
+  }
 enable_nat_gateway   = true
 
 # Replica settings

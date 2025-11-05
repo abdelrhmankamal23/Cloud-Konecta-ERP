@@ -22,7 +22,11 @@ variable "vpc_cidr" {
 
 variable "availability_zones" {
   description = "List of availability zones"
-  type        = list(string)
+  type        = map(string)
+  default     = {
+    "zone-1" = "eu-west-1a"
+    "zone-2" = "eu-west-1b"
+  }
 }
 
 variable "enable_nat_gateway" {
