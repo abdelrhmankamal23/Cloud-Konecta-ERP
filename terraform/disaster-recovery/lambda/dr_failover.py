@@ -45,9 +45,9 @@ def handler(event, context):
             })
         }
         
-    except Exception as e:
-        logger.error(f"DR failover failed: {str(e)}")
-        raise e
+    except Exception as error:
+        logger.error("DR failover failed:" + str(error) )
+        raise error
 
 def promote_rds_replica(region, replica_id):
     """Promote RDS read replica to primary"""
