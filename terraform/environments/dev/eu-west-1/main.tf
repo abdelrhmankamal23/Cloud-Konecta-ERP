@@ -43,23 +43,8 @@ data "terraform_remote_state" "primary" {
   }
 }
 
-module "eks" {
-  source = "../../../modules/eks"
-  
-  environment        = "${local.environment}-dr"
-  vpc_id             = module.vpc.vpc_id
-  private_subnet_ids = module.vpc.private_subnet_ids
-  public_subnet_ids  = module.vpc.public_subnet_ids
-  vpc_cidr           = module.vpc.vpc_cidr_block
-  team_admin_arns    = var.team_admin_arns
-}
-
-# ECR for DR region
-module "ecr" {
-  source = "../../../modules/ecr"
-  environment = "${local.environment}-dr"
-  fargate_pod_execution_role_name = module.eks.fargate_pod_execution_role_name
-}
+# EKS and ECR will be created by Lambda during DR failover
+# Keeping only essential standby infrastructure
 
 # RDS Read Replica for DR
 module "rds" {
@@ -80,7 +65,7 @@ module "rds" {
   source_db_identifier    = data.terraform_remote_state.primary.outputs.primary_db_arn
   replica_deletion_protection = var.replica_deletion_protection
   
-  eks_security_group_ids = [module.eks.cluster_security_group_id]
+  # No EKS security groups for minimal standby
 }
 
 # Secrets for DR region
