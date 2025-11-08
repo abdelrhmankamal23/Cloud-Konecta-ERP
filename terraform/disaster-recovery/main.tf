@@ -1,6 +1,3 @@
-# Disaster Recovery Main Configuration
-
-# Provider configuration
 terraform {
   required_providers {
     aws = {
@@ -10,9 +7,15 @@ terraform {
   }
 }
 
+# Deploy DR infrastructure in eu-west-1 (safe from us-east-1 failures)
 provider "aws" {
-  alias  = "dr"
-  region = var.dr_region
+  region = "eu-west-1"
+}
+
+# Provider to monitor primary region resources
+provider "aws" {
+  alias  = "primary"
+  region = "us-east-1"
 }
 
 # Data sources
@@ -23,7 +26,7 @@ resource "aws_ecr_replication_configuration" "dr_replication" {
   replication_configuration {
     rule {
       destination {
-        region      = var.dr_region
+        region      = var.secondary_region
         registry_id = data.aws_caller_identity.current.account_id
       }
       
@@ -51,7 +54,6 @@ resource "aws_s3_bucket_versioning" "dr_configs" {
     status = "Enabled"
   }
 }
-
 
 # Lambda Function for DR Automation
 data "archive_file" "lambda_zip" {
@@ -81,35 +83,7 @@ resource "aws_iam_role" "lambda_dr" {
 resource "aws_iam_role_policy" "lambda_dr" {
   name = "${var.project_name}-lambda-dr-policy"
   role = aws_iam_role.lambda_dr.id
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Effect = "Allow"
-        Action = [
-          "logs:CreateLogGroup",
-          "logs:CreateLogStream",
-          "logs:PutLogEvents"
-        ]
-        Resource = "arn:aws:logs:*:*:*"
-      },
-      {
-        Effect = "Allow"
-        Action = [
-          "rds:PromoteReadReplica",
-          "rds:ModifyDBInstance",
-          "eks:*",
-          "ec2:*",
-          "iam:PassRole",
-          "s3:GetObject",
-          "s3:PutObject",
-          "s3:ListBucket"
-        ]
-        Resource = "*"
-      }
-    ]
-  })
+  policy = file("${path.module}/policies/lambda-dr-policy.json")
 }
 
 resource "aws_lambda_function" "dr_failover" {
@@ -118,12 +92,11 @@ resource "aws_lambda_function" "dr_failover" {
   role            = aws_iam_role.lambda_dr.arn
   handler         = "dr_failover.handler"
   runtime         = "python3.9"
-  timeout         = 900
   source_code_hash = data.archive_file.lambda_zip.output_base64sha256
   
   environment {
     variables = {
-      DR_REGION        = var.dr_region
+      DR_REGION        = var.secondary_region
       PRIMARY_REGION   = var.primary_region
       RDS_REPLICA_ID   = var.rds_replica_id
       EKS_CLUSTER_NAME = var.eks_cluster_name_dr
@@ -147,8 +120,10 @@ resource "aws_lambda_permission" "allow_cloudwatch" {
   source_arn    = "arn:aws:cloudwatch:${var.primary_region}:${data.aws_caller_identity.current.account_id}:alarm:*"
 }
 
-# CloudWatch Alarm for RDS Failure Detection with Auto-Trigger
+# CloudWatch Alarm for RDS Failure Detection - Monitor us-east-1 from eu-west-1
 resource "aws_cloudwatch_metric_alarm" "rds_primary_failure" {
+  provider = aws.primary 
+  
   alarm_name          = "${var.project_name}-rds-primary-failure"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = var.alarm_evaluation_periods
@@ -173,8 +148,19 @@ resource "aws_cloudwatch_metric_alarm" "rds_primary_failure" {
   })
 }
 
-# ALB Target Health Alarm with Auto-Trigger
+# Find ALB created by Kubernetes AWS Load Balancer Controller
+data "aws_lb" "kubernetes_alb" {
+  provider = aws.primary
+  
+  tags = {
+    "kubernetes.io/cluster/konecta-erp-dev" = "owned"
+  }
+}
+
+# ALB Target Health Alarm - Monitor us-east-1 from eu-west-1
 resource "aws_cloudwatch_metric_alarm" "alb_unhealthy_targets" {
+  provider = aws.primary  # Monitor primary region from DR region
+  
   alarm_name          = "${var.project_name}-alb-unhealthy-targets"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = 10
@@ -189,6 +175,10 @@ resource "aws_cloudwatch_metric_alarm" "alb_unhealthy_targets" {
     aws_lambda_function.dr_failover.arn
   ])
   treat_missing_data = "breaching"
+  
+  dimensions = {
+    LoadBalancer = data.aws_lb.kubernetes_alb.arn_suffix
+  }
   
   lifecycle {
     create_before_destroy = true

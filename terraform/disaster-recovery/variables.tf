@@ -20,13 +20,13 @@ variable "project_name" {
 }
 
 variable "primary_region" {
-  description = "Primary AWS region"
+  description = "Primary AWS region to monitor (us-east-1)"
   type        = string
   default     = "us-east-1"
 }
 
-variable "dr_region" {
-  description = "Disaster recovery AWS region"
+variable "secondary_region" {
+  description = "Secondary AWS region where DR infrastructure runs (eu-west-1)"
   type        = string
   default     = "eu-west-1"
 }
@@ -65,7 +65,7 @@ variable "alarm_evaluation_periods" {
 variable "alarm_period" {
   description = "CloudWatch alarm period in seconds"
   type        = number
-  default     = 300
+  default     = 300       # 5min
 }
 
 variable "notification_email" {
