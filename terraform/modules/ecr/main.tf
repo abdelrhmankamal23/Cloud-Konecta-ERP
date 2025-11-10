@@ -1,15 +1,15 @@
 # ECR Repository for Docker Images
 resource "aws_ecr_repository" "services" {
   for_each = toset([
-    "konecta-auth-service",
-    "konecta-gateway-service",
-    "konecta-discovery-server",
-    "konecta-config-server",
-    "konecta-hr-service",
-    "konecta-finance-service",
-    "konecta-inventory-service",
-    "konecta-reporting-service",
-    "konecta-frontend"
+   # "konecta-auth-service",
+   # "konecta-gateway-service",
+   # "konecta-discovery-server",
+   # "konecta-config-server",
+   # "konecta-hr-service",
+   # "konecta-finance-service",
+   # "konecta-inventory-service",
+   # "konecta-reporting-service",
+   # "konecta-frontend"
   ])
   
   name                 = "konecta-erp/${each.key}"
