@@ -251,4 +251,50 @@ resource "aws_eks_access_policy_association" "team_admins_policy" {
   }
 }
 
+###############################################
+# EKS Add-on: CloudWatch Observability
+###############################################
+
+resource "aws_iam_role" "cloudwatch_agent_irsa" {
+  name = "konecta-erp-cwagent-irsa-${var.environment}"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Principal = {
+          Federated = aws_iam_openid_connect_provider.cluster.arn
+        },
+        Action = "sts:AssumeRoleWithWebIdentity",
+        Condition = {
+          StringEquals = {
+            "${replace(aws_iam_openid_connect_provider.cluster.url, "https://", "")}:aud" : "sts.amazonaws.com",
+            "${replace(aws_iam_openid_connect_provider.cluster.url, "https://", "")}:sub" : "system:serviceaccount:aws-observability:cloudwatch-agent"
+          }
+        }
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "cloudwatch_agent_irsa_attach" {
+  role       = aws_iam_role.cloudwatch_agent_irsa.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+}
+
+resource "aws_eks_addon" "cloudwatch_observability" {
+  cluster_name                = aws_eks_cluster.main.name
+  addon_name                  = "amazon-cloudwatch-observability"
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+  service_account_role_arn    = aws_iam_role.cloudwatch_agent_irsa.arn
+
+  depends_on = [
+    aws_iam_openid_connect_provider.cluster,
+    aws_iam_role_policy_attachment.cloudwatch_agent_irsa_attach
+  ]
+}
+
+
 
