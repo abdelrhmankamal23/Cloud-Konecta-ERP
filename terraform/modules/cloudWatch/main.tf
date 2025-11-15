@@ -106,113 +106,61 @@ resource "aws_cloudwatch_metric_alarm" "rds_db_connections_high" {
   }
 }
 
-# EKS Fargate-only: Alarms using Container Insights pod metrics aggregated cluster-wide
-resource "aws_cloudwatch_metric_alarm" "eks_pod_cpu_high" {
-  alarm_name          = "${var.project_name}-eks-pod-cpu-high"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 2
-  threshold           = 80
-  alarm_description   = "EKS average pod CPU utilization > 80%"
-  alarm_actions       = var.eks_alarm_actions
-
-  metric_query {
-    id          = "m1"
-    return_data = false
-    metric {
-      namespace   = "ContainerInsights"
-      metric_name = "pod_cpu_utilization"
-      dimensions = {
-        ClusterName = var.eks_cluster_name
-        Namespace   = "*"
-      }
-      period = 300
-      stat   = "Average"
-    }
-  }
-
-  metric_query {
-    id          = "e1"
-    expression  = "AVG(METRICS())"
-    label       = "Avg Pod CPU Utilization"
-    return_data = true
-  }
-}
-
-resource "aws_cloudwatch_metric_alarm" "eks_pod_memory_high" {
-  alarm_name          = "${var.project_name}-eks-pod-memory-high"
-  comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 2
-  threshold           = 80
-  alarm_description   = "EKS average pod memory utilization > 80%"
-  alarm_actions       = var.eks_alarm_actions
-
-  metric_query {
-    id          = "m1"
-    return_data = false
-    metric {
-      namespace   = "ContainerInsights"
-      metric_name = "pod_memory_utilization"
-      dimensions = {
-        ClusterName = var.eks_cluster_name
-        Namespace   = "*"
-      }
-      period = 300
-      stat   = "Average"
-    }
-  }
-
-  metric_query {
-    id          = "e1"
-    expression  = "AVG(METRICS())"
-    label       = "Avg Pod Memory Utilization"
-    return_data = true
-  }
-}
-
+# EKS CloudWatch Dashboard
+# ===========================================
 data "aws_cloudwatch_log_group" "eks_logs" {
   name = "/aws/eks/${var.eks_cluster_name}/cluster"
 }
+
 resource "aws_cloudwatch_dashboard" "eks_dashboard" {
   dashboard_name = "${var.project_name}-eks-dashboard"
 
   dashboard_body = jsonencode({
     widgets = [
       {
-        type = "metric",
-        x    = 0,
-        y    = 0,
-        width = 12,
-        height = 6,
+        type = "metric"
+        x = 0
+        y = 0
+        width = 12
+        height = 6
         properties = {
           metrics = [
-            [ { "expression": "AVG(SEARCH('{ContainerInsights,ClusterName,Namespace} MetricName=\"pod_cpu_utilization\" ClusterName=\"${var.eks_cluster_name}\"', 'Average', 300))", "label": "Avg Pod CPU", "id": "e1" } ]
-          ],
-          title = "EKS Pod CPU Utilization (Avg)",
-          period = 300,
-          stat = "Average",
-          region = var.aws_region,
-          annotations = {
-            horizontal = []
-          }
+            [
+              {
+                expression = "AVG(SEARCH('{ContainerInsights,ClusterName,Namespace} MetricName=\"pod_cpu_utilization\" ClusterName=\"${var.eks_cluster_name}\"', 'Average', 300))"
+                label      = "Avg Pod CPU"
+                id         = "e1"
+              }
+            ]
+          ]
+          title = "EKS Pod CPU Utilization (Avg)"
+          period = 300
+          stat = "Average"
+          region = var.aws_region
+          annotations = { horizontal = [] }
         }
       },
       {
-        type = "metric",
-        x    = 0,
-        y    = 6,
-        width = 12,
-        height = 6,
+        type = "metric"
+        x = 0
+        y = 6
+        width = 12
+        height = 6
         properties = {
           metrics = [
-            [ { "expression": "AVG(SEARCH('{ContainerInsights,ClusterName,Namespace} MetricName=\"pod_memory_utilization\" ClusterName=\"${var.eks_cluster_name}\"', 'Average', 300))", "label": "Avg Pod Memory", "id": "e2" } ]
-          ],
-          title = "EKS Pod Memory Utilization (Avg)",
-          period = 300,
-          stat = "Average",
-          region = var.aws_region,
-          annotations = {
-            horizontal = []
-          }
+            [
+              {
+                expression = "AVG(SEARCH('{ContainerInsights,ClusterName,Namespace} MetricName=\"pod_memory_utilization\" ClusterName=\"${var.eks_cluster_name}\"', 'Average', 300))"
+                label      = "Avg Pod Memory"
+                id         = "e2"
+              }
+            ]
+          ]
+          title = "EKS Pod Memory Utilization (Avg)"
+          period = 300
+          stat = "Average"
+          region = var.aws_region
+          annotations = { horizontal = [] }
         }
       }
     ]

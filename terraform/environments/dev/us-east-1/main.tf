@@ -80,8 +80,8 @@ module "secrets" {
   db_password = module.rds.db_password
 }
 
-module "cloudwatch" {
-  source = "../../../modules/cloudwatch"
+module "cloudWatch" {
+  source = "../../../modules/cloudWatch"
 
   environment       = local.environment
   aws_region        = var.aws_region
@@ -89,5 +89,5 @@ module "cloudwatch" {
   rds_alarm_actions = var.rds_alarm_actions
   project_name      = "konecta-erp"
   eks_cluster_name  = module.eks.cluster_name
-  eks_alarm_actions = var.rds_alarm_actions
+  eks_alarm_actions = var.eks_alarm_actions
 }

@@ -121,12 +121,18 @@ resource "aws_eks_node_group" "main" {
     aws_iam_role_policy_attachment.node_group_AmazonEKSWorkerNodePolicy,
     aws_iam_role_policy_attachment.node_group_AmazonEKS_CNI_Policy,
     aws_iam_role_policy_attachment.node_group_AmazonEC2ContainerRegistryReadOnly,
+     aws_iam_role_policy_attachment.node_group_CloudWatchAgentServerPolicy,
   ]
 
   tags = {
     Name = "konecta-erp-nodegroup-${var.environment}"
   }
 }
+resource "aws_iam_role_policy_attachment" "node_group_CloudWatchAgentServerPolicy" {
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
+  role       = aws_iam_role.node_group.name
+}
+
 
 ###############################################
 # Team Admin Access
