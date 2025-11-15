@@ -9,7 +9,7 @@ variable "vpc_id" {
 }
 
 variable "private_subnet_ids" {
-  description = "List of private subnet IDs for Fargate pods"
+  description = "List of private subnet IDs for node group"
   type        = list(string)
 }
 
@@ -18,18 +18,7 @@ variable "public_subnet_ids" {
   type        = list(string)
 }
 
-variable "vpc_cidr" {
-  description = "CIDR block of the VPC"
-  type        = string
-}
-
 variable "team_admin_arns" {
   description = "List of IAM role/user ARNs for the EKS admin team"
   type        = list(string)
-}
-
-variable "ssl_certificate_arn" {
-  description = "ACM certificate ARN for HTTPS on the ALB listener"
-  type        = string
-  default     = ""
 }
